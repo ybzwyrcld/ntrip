@@ -1,0 +1,8 @@
+2018-11-22
+1. fix support ntrip client 1.0 request to connect to caster;
+2. rearrange the source file;
+
+2018-09-26
+1. ntrip caster completed;
+2. ntrip client completed;
+3. ntrip server completed;
