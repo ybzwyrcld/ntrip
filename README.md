@@ -1,2 +1,3 @@
-# ntripcaster
-Simple NTRIPCaster example, using the NTRIP2.0 protocol
+# NTRIPLIB
+
+Simple NTRIPCaster/NTRIPClient/NTRIPServer example programs, support the NTRIP 1.0/2.0 protocol;
