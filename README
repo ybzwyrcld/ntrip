@@ -1,6 +1,12 @@
+2018-11-24
+1. handling a list of ntrip mount points using an iterator;
+2. the default ip address and port is 127.0.0.1:8090;
+
+
 2018-11-22
 1. fix support ntrip client 1.0 request to connect to caster;
 2. rearrange the source file;
+
 
 2018-09-26
 1. ntrip caster completed;

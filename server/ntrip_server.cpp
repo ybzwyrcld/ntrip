@@ -22,14 +22,14 @@ int main(void)
 	char userinfo_raw[48] = {0};
 	char userinfo[64] = {0};
 
-	char server_ip[] = "192.168.1.118";
-	int server_port = 12345;
+	char server_ip[] = "127.0.0.1";
+	int server_port = 8090;
 	char mountpoint[] = "RTCM32";
 	char user[] = "test01";
 	char passwd[] = "testing";
 
 	struct sockaddr_in server_addr;
-	memset(&server_addr, 0, sizeof(&server_addr));
+	memset(&server_addr, 0, sizeof(struct sockaddr_in));
 	server_addr.sin_family = AF_INET;
 	server_addr.sin_port = htons(server_port);
 	server_addr.sin_addr.s_addr = inet_addr(server_ip);
@@ -61,23 +61,26 @@ int main(void)
 		exit(1);
 	}
 
-	ret = connect(m_sock, (struct sockaddr *)&server_addr, sizeof(server_addr));
+	ret = connect(m_sock, (struct sockaddr *)&server_addr, sizeof(struct sockaddr_in));
 	if(ret < 0){
-		printf("connect to caster fail!!!");
+		printf("connect to caster fail!!!\n");
 		exit(1);
 	}
 
 	ret = send(m_sock, send_buf, strlen(send_buf), 0);	
 	if(ret < 0){
-		printf("send request fail!!!");
+		printf("send request fail!!!\n");
 		exit(1);
 	}
 
 	/* Wait for request to connect caster success. */
+	printf("waitting...\n");
 	while(1){
 		memset(recv_buf, 0x0, 1024);
 		ret = recv(m_sock, recv_buf, 1024, 0);
-		printf("recv: \n%s\n", recv_buf);
+		if(ret > 0){
+			printf("recv: \n%s", recv_buf);
+		}
 		if(ret > 0 && !strncmp(recv_buf, "ICY 200 OK\r\n", 12)){
 			break;
 		}

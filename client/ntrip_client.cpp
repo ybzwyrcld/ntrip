@@ -23,8 +23,8 @@ int main(int argc, char *argv[])
 	char userinfo_raw[48] = {0};
   	char userinfo[64] = {0};
  
-	char server_ip[] = "192.168.1.118";
-	int server_port = 12345;
+	char server_ip[] = "127.0.0.1";
+	int server_port = 8090;
    	
 	char mountpoint[] = "RTCM32";
 	char user[] = "test01";
@@ -32,7 +32,7 @@ int main(int argc, char *argv[])
 	char gpgga[] = "$GPGGA,083552.00,3000.0000000,N,11900.0000000,E,1,08,1.0,0.000,M,100.000,M,,*57\r\n";
 
 	struct sockaddr_in source_addr;
-	memset(&source_addr, 0, sizeof(&source_addr));
+	memset(&source_addr, 0, sizeof(struct sockaddr_in));
 	source_addr.sin_family = AF_INET;
 	source_addr.sin_port = htons(server_port);
 	source_addr.sin_addr.s_addr = inet_addr(server_ip);
@@ -56,7 +56,7 @@ int main(int argc, char *argv[])
 		exit(1);
 	}
 
-	int ret = connect(m_sock, (struct sockaddr *)&source_addr, sizeof(source_addr));
+	int ret = connect(m_sock, (struct sockaddr *)&source_addr, sizeof(struct sockaddr_in));
 	if(ret < 0){
 		printf("connect caster fail\n");
 		exit(1);
@@ -90,6 +90,9 @@ int main(int argc, char *argv[])
 		if(ret > 0){
 			printf("recv data:[%d] used time:[%d]\n", ret, (int)(stop - start));
 			print_char(recv_buf, ret);
+		}else{
+			printf("remote socket close!!!\n");
+			break;
 		}
 	}
 
