@@ -8,6 +8,14 @@
 void print_char(char *src, int len)
 {
 	for(int i = 0; i < len; ++i){
+		printf("%c", (unsigned char)src[i]);
+	}
+	printf("\n");
+}
+
+void print_char_hex(char *src, int len)
+{
+	for(int i = 0; i < len; ++i){
 		printf("%02x ", (unsigned char)src[i]);
 	}
 	printf("\n");

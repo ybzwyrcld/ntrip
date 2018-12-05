@@ -7,6 +7,7 @@ const char server_agent[] = "NTRIP KleinNTRIPServer/20181122";
 const char base64_code_table[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 
 void print_char(char *src, int len);
+void print_char_hex(char *src, int len);
 int check_sum(char *src);
 int ch2index(char ch);
 char index2chr(int index);
