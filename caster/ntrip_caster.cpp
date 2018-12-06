@@ -223,7 +223,7 @@ void ntrip_caster::run(int time_out)
 
 										str_string = "";
 										str_mntname = "";
-										mnt_list.earse(it);
+										mnt_list.erase(it);
 										break;
 									}
 								}

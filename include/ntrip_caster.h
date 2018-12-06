@@ -95,7 +95,7 @@ public:
 	}
 
 	/* delete list element. */
-	iterator earse(iterator itr) {
+	iterator erase(iterator itr) {
 		list_node<T>* ptr_node = itr.m_ptr;
 		iterator ret = ++itr;
 		if (m_size > 1) {
