@@ -19,7 +19,7 @@ int main(int argc, char *argv[])
 	int m_sock;
 	time_t start, stop;
 	char recv_buf[1024] = {0};
-	char request[1024] = {0};
+	char request_data[1024] = {0};
 	char userinfo_raw[48] = {0};
   	char userinfo[64] = {0};
  
@@ -31,23 +31,24 @@ int main(int argc, char *argv[])
 	char passwd[] = "testing";
 	char gpgga[] = "$GPGGA,083552.00,3000.0000000,N,11900.0000000,E,1,08,1.0,0.000,M,100.000,M,,*57\r\n";
 
-	struct sockaddr_in source_addr;
-	memset(&source_addr, 0, sizeof(struct sockaddr_in));
-	source_addr.sin_family = AF_INET;
-	source_addr.sin_port = htons(server_port);
-	source_addr.sin_addr.s_addr = inet_addr(server_ip);
+	struct sockaddr_in server_addr;
+	memset(&server_addr, 0, sizeof(struct sockaddr_in));
+	server_addr.sin_family = AF_INET;
+	server_addr.sin_port = htons(server_port);
+	server_addr.sin_addr.s_addr = inet_addr(server_ip);
 	
 	/* Generate base64 encoding of user and passwd. */
 	snprintf(userinfo_raw, 63 , "%s:%s", user, passwd);
 	base64_encode(userinfo_raw, userinfo);
  
-    /* Generate request data format of ntrip. */
-	snprintf(request, 1023,
+ 	/* Generate request data format of ntrip. */
+	snprintf(request_data, 1023,
 		"GET /%s HTTP/1.1\r\n"
 		"User-Agent: %s\r\n"
 		"Accept: */*\r\n"
 		"Connection: close\r\n"
-		"Authorization: Basic %s\r\n" 
+		"Authorization: Basic %s\r\n"
+		"\r\n"
 		, mountpoint, client_agent, userinfo);
 
 	m_sock = socket(AF_INET, SOCK_STREAM, 0);
@@ -56,13 +57,13 @@ int main(int argc, char *argv[])
 		exit(1);
 	}
 
-	int ret = connect(m_sock, (struct sockaddr *)&source_addr, sizeof(struct sockaddr_in));
+	int ret = connect(m_sock, (struct sockaddr *)&server_addr, sizeof(struct sockaddr_in));
 	if(ret < 0){
 		printf("connect caster fail\n");
 		exit(1);
 	}
 
-	ret = send(m_sock, request, strlen(request), 0);
+	ret = send(m_sock, request_data, strlen(request_data), 0);
 	if(ret < 0){
 		printf("send request fail\n");
 		exit(1);
