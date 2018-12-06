@@ -57,12 +57,14 @@ int main(int argc, char *argv[])
 		exit(1);
 	}
 
+	/* Connect to caster. */
 	int ret = connect(m_sock, (struct sockaddr *)&server_addr, sizeof(struct sockaddr_in));
 	if(ret < 0){
 		printf("connect caster fail\n");
 		exit(1);
 	}
 
+	/* Send request data. */
 	ret = send(m_sock, request_data, strlen(request_data), 0);
 	if(ret < 0){
 		printf("send request fail\n");
