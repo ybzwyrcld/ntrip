@@ -3,6 +3,9 @@
 
 #define MAX_LEN 2048
 
+/* c++ standard libary. */
+#include <string>
+
 #include <ntrip_mountpoint.h>
 
 template<typename T>
@@ -137,6 +140,7 @@ private:
 	int m_max_count;
 	struct epoll_event *m_epoll_events;
 	list<mountpoint_info> mnt_list;
+	std::vector<std::string> m_str_list;
 };
 
 #endif //__NTRIP_CASTER_H__

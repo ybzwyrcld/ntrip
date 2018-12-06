@@ -45,13 +45,15 @@ int main(void)
 		"Ntrip-Version: Ntrip/2.0\r\n"
 		"User-Agent: %s\r\n"
 		"Authorization: Basic %s\r\n"
-		"Ntrip-STR: \r\n"
+		"Ntrip-STR: STR;%s;%s;RTCM 3.2;1004(1),1005/1007(5),PBS(10);2;GPS;SGNET;CHN;31;121;1;1;SGCAN;None;B;N;0;;\r\n"
 		"Connection: close\r\n"
 		"Transfer-Encoding: chunked\r\n"
 		, mountpoint, 
 		server_ip, server_port, 
-		server_agent, 
-		userinfo);
+		server_agent,
+		userinfo,
+		mountpoint, mountpoint
+	);
 	
 	unsigned char example_data[] = {
 			0xd3, 0x00, 0x70, 0x8e, 0x43, 0x56, 0x45, 0x00, 0x00, 0x55, 0xfb, 0x89, 0xff, 0xff, '\r', '\n'};

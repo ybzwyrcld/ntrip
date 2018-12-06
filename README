@@ -1,3 +1,8 @@
+2018-12-06
+1. using vector<string> save string of mount point data information, cancel read from loacl file;
+2. update user agent version to 20181206
+
+
 2018-11-24
 1. handling a list of ntrip mount points using an iterator;
 2. the default ip address and port is 127.0.0.1:8090;

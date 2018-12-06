@@ -209,6 +209,20 @@ void ntrip_caster::run(int time_out)
 												close(*cit);
 											}
 										}
+									
+										/* Remove mount point data information from source table list. */	
+										std::string str_mntname(it->value.mntname);
+										std::string str_string("STR;" + str_mntname + ";" + str_mntname + ";");
+
+										for(auto str_it = m_str_list.begin(); str_it != m_str_list.end(); ++str_it){
+											if(str_it->find(str_string) < str_it->length()){
+												m_str_list.erase(str_it);
+												break;
+											}
+										}
+
+										str_string = "";
+										str_mntname = "";
 										mnt_list.earse(it);
 										break;
 									}
@@ -288,10 +302,30 @@ int ntrip_caster::parse_data(int sock, char* recv_data, int data_len)
 						mnt_list.push_back(*m_mntinfo);
 						//printf("Add MountPoint ok\n");
 						send_data(sock, "ICY 200 OK\r\n", 12);
-						return 0;
+						break;
 					}
 				}
 				result = strtok(NULL, "\n");
+			}
+
+			result = strtok(NULL, "\n");
+			/* Check mount point data information, save to source table list. */
+			if(!strncasecmp(result, "Ntrip-STR:", 10)){
+				char *str_mnt = new char[16];
+				char *str_mnt_check = new char[16];
+				sscanf(result, "%*[^;]%*c%[^;]%*c%[^;]", str_mnt, str_mnt_check);
+				printf("%s, %s\n", str_mnt, str_mnt_check);
+				if(strncmp(m_mnt, str_mnt, strlen(str_mnt)) ||
+						strncmp(m_mnt, str_mnt_check, strlen(str_mnt_check))){
+					send_data(sock, "ERROR - Bad Password\r\n", 22);
+					return -1;
+				}
+				delete(str_mnt);
+				delete(str_mnt_check);
+				std::string str_string(result+11);
+				str_string += "\n";
+				m_str_list.push_back(str_string);
+				str_string = "";
 			}
 		}
 
@@ -315,12 +349,28 @@ int ntrip_caster::parse_data(int sock, char* recv_data, int data_len)
 			/* Check mountpoint. */
 			sscanf(result, "%*[^/]%*c%[^ ]", m_mnt);
 			//printf("MountPoint: [%s]\n", m_mnt);
+
 			/* Request to get the Source Table. */
 			if(!strlen( m_mnt)){
 				char *st_data = new char[MAX_LEN];
-				get_sourcetable(st_data, MAX_LEN);
+				std::string str_string= "";
+				for(auto it = m_str_list.begin(); it != m_str_list.end(); ++it){
+					str_string.append(*it);
+				}
+				
+				snprintf(st_data, MAX_LEN-1,
+					"SOURCETABLE 200 OK\r\n"
+					"Server: %s\r\n"
+					"Content-Type: text/plain\r\n"
+					"Content-Length: %d\r\n"
+					"%s"
+					"ENDSOURCETABLE\r\n",
+					caster_agent, strlen(str_string.c_str()), str_string.c_str());
+
 				send_data(sock, st_data, strlen(st_data));
-				return  0;
+				delete(st_data);
+				str_string= "";
+				return 0;
 			}
 
 			/* Request to get the Server's data. */

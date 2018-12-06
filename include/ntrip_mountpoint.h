@@ -6,9 +6,9 @@
 
 struct mountpoint_info {
 	int server_fd;
-	char mntname[16];
-	char username[16];
-	char password[16];
+	char mntname[16] = {0};
+	char username[16] = {0};
+	char password[16] = {0};
 	std::vector<int> conn_sock;
 
 	mountpoint_info() {

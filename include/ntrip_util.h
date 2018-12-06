@@ -1,9 +1,9 @@
 #ifndef __NTRIP_UTIL_H__
 #define __NTRIP_UTIL_H__
 
-const char caster_agent[] = "NTRIP KleinNTRIPCaster/20181122";
-const char client_agent[] = "NTRIP KleinNTRIPClient/20181122";
-const char server_agent[] = "NTRIP KleinNTRIPServer/20181122";
+const char caster_agent[] = "NTRIP NTRIPCaster/20181206";
+const char client_agent[] = "NTRIP NTRIPClient/20181206";
+const char server_agent[] = "NTRIP NTRIPServer/20181206";
 const char base64_code_table[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 
 void print_char(char *src, int len);
