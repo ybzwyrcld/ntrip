@@ -10,6 +10,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 
 #include <ntrip_caster.h>
 #include <ntrip_util.h>
@@ -314,7 +315,7 @@ int ntrip_caster::parse_data(int sock, char* recv_data, int data_len)
 				char *str_mnt = new char[16];
 				char *str_mnt_check = new char[16];
 				sscanf(result, "%*[^;]%*c%[^;]%*c%[^;]", str_mnt, str_mnt_check);
-				printf("%s, %s\n", str_mnt, str_mnt_check);
+				//printf("%s, %s\n", str_mnt, str_mnt_check);
 				if(strncmp(m_mnt, str_mnt, strlen(str_mnt)) ||
 						strncmp(m_mnt, str_mnt_check, strlen(str_mnt_check))){
 					send_data(sock, "ERROR - Bad Password\r\n", 22);
@@ -357,18 +358,28 @@ int ntrip_caster::parse_data(int sock, char* recv_data, int data_len)
 				for(auto it = m_str_list.begin(); it != m_str_list.end(); ++it){
 					str_string.append(*it);
 				}
+				time_t now;
+				struct tm *tm_now;
+				char *datetime = new char[128];
+
+				time(&now);
+				tm_now = localtime(&now);
+				strftime(datetime, 128, "%x %H:%M:%S %Z", tm_now);
 				
 				snprintf(st_data, MAX_LEN-1,
 					"SOURCETABLE 200 OK\r\n"
 					"Server: %s\r\n"
 					"Content-Type: text/plain\r\n"
 					"Content-Length: %d\r\n"
+					"Date: %s\r\n"
+					"\r\n"
 					"%s"
 					"ENDSOURCETABLE\r\n",
-					caster_agent, strlen(str_string.c_str()), str_string.c_str());
+					caster_agent, strlen(str_string.c_str()), datetime, str_string.c_str());
 
 				send_data(sock, st_data, strlen(st_data));
 				delete(st_data);
+				delete(datetime);
 				str_string= "";
 				return 0;
 			}
