@@ -202,12 +202,13 @@ void ntrip_caster::run(int time_out)
 							int sock = m_epoll_events[i].data.fd;
 							if(mnt_list.size() > 0){
 								for(auto it = mnt_list.begin(); it != mnt_list.end(); ++it){
-									if(it->value.server_fd == sock){
+									if(it->value.server_fd == sock){ // is ntrip srever.
 										if(it->value.conn_sock.size() > 0){
 											for(auto cit = it->value.conn_sock.begin(); 
 														cit != it->value.conn_sock.end(); ++cit){
 												epoll_ops(*cit, EPOLL_CTL_ADD, EPOLLIN);
 												close(*cit);
+												it->value.conn_sock.erase(cit);
 											}
 										}
 									
@@ -226,6 +227,16 @@ void ntrip_caster::run(int time_out)
 										str_mntname = "";
 										mnt_list.erase(it);
 										break;
+									}else{ // is ntrip client.
+										if(it->value.conn_sock.size() > 0){
+											for(auto cit = it->value.conn_sock.begin(); 
+														cit != it->value.conn_sock.end(); ++cit){
+												if(*cit == sock){
+													it->value.conn_sock.erase(cit);
+													break;
+												}
+											}
+										}
 									}
 								}
 							}
@@ -338,6 +349,7 @@ int ntrip_caster::parse_data(int sock, char* recv_data, int data_len)
 						for(auto cit = it->value.conn_sock.begin(); 
 									cit != it->value.conn_sock.end(); ++cit){
 								send_data(*cit, recv_data, data_len);
+								//printf("forward %d byte data\n", data_len);
 						}
 					}
 					return 0;
