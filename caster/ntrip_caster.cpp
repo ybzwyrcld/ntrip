@@ -410,7 +410,7 @@ int ntrip_caster::parse_data(int sock, char* recv_data, int data_len)
 			struct mountpoint_info *mi_ptr = nullptr;
 			if(mnt_list.size() > 0){
 				for(auto it = mnt_list.begin(); it != mnt_list.end(); ++it){
-					if(!strncmp(it->value.mntname, m_mnt, strlen(m_mnt))){
+					if((strlen(it->value.mntname) == strlen(m_mnt)) && !strncmp(it->value.mntname, m_mnt, strlen(m_mnt))){
 						mi_ptr = &(it->value);
 						break;
 					}
@@ -433,7 +433,8 @@ int ntrip_caster::parse_data(int sock, char* recv_data, int data_len)
 						base64_decode(m_userpwd, m_username, m_password);
 						//printf("Username: [%s], Password: [%s]\n", m_username, m_password);
 						/* Check username && password. */
-						if(strncmp(mi_ptr->username, m_username, strlen(m_username)) ||
+						if(strlen(mi_ptr->username) != strlen(m_username) ||
+							strncmp(mi_ptr->username, m_username, strlen(m_username)) ||
 								strncmp(mi_ptr->password, m_password, strlen(m_password))){
 							printf("Password error!!!\n");
 							send_data(sock, "HTTP/1.1 401 Unauthorized\r\n", 27);
