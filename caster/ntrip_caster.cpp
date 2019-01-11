@@ -296,7 +296,7 @@ int ntrip_caster::parse_data(int sock, char* recv_data, int data_len)
 	result = strtok(temp, "\n");
 	if(result != NULL) {
 		/* Server request to connect to Caster. */
-		if(!strncasecmp(result, "POST /", 6) && strstr(result, "HTTP/1.1")){
+		if(!strncmp(result, "POST /", 6) && strstr(result, "HTTP/1.1")){
 			/* Check mountpoint. */
 			sscanf(result, "%*[^/]%*c%[^ ]", m_mnt);
 			//printf("MountPoint: [%s]\n", m_mnt);
@@ -313,7 +313,7 @@ int ntrip_caster::parse_data(int sock, char* recv_data, int data_len)
 			printf("Can use this mount point!!!\n");
 			result = strtok(NULL, "\n");
 			while(result != NULL) {
-				if(!strncasecmp(result, "Authorization: Basic", 20)){
+				if(!strncmp(result, "Authorization: Basic", 20)){
 					sscanf(result, "%*[^ ]%*c%*[^ ]%*c%[^\r]", m_userpwd);
 					if(strlen(m_userpwd) > 0 ){
 						/* Decode username && password. */
@@ -332,7 +332,7 @@ int ntrip_caster::parse_data(int sock, char* recv_data, int data_len)
 
 			result = strtok(NULL, "\n");
 			/* Check mount point data information, save to source table list. */
-			if(!strncasecmp(result, "Ntrip-STR:", 10)){
+			if(!strncmp(result, "Ntrip-STR:", 10)){
 				char *str_mnt = new char[16];
 				char *str_mnt_check = new char[16];
 				sscanf(result, "%*[^;]%*c%[^;]%*c%[^;]", str_mnt, str_mnt_check);
@@ -368,7 +368,7 @@ int ntrip_caster::parse_data(int sock, char* recv_data, int data_len)
 		}
 
 		/* Client request to get the Source Table or Server's data. */
-		if(!strncasecmp(result, "GET /", 5) && (strstr(result, "HTTP/1.1") || strstr(result, "HTTP/1.0"))){
+		if(!strncmp(result, "GET /", 5) && (strstr(result, "HTTP/1.1") || strstr(result, "HTTP/1.0"))){
 			/* Check mountpoint. */
 			sscanf(result, "%*[^/]%*c%[^ ]", m_mnt);
 			//printf("MountPoint: [%s]\n", m_mnt);
@@ -425,7 +425,7 @@ int ntrip_caster::parse_data(int sock, char* recv_data, int data_len)
 
 			result = strtok(NULL, "\n");
 			while(result != NULL) {
-				if(!strncasecmp(result, "Authorization: Basic", 20)){
+				if(!strncmp(result, "Authorization: Basic", 20)){
 					/* Get username && password. */
 					sscanf(result, "%*[^ ]%*c%*[^ ]%*c%[^\r]", m_userpwd);
 					if(strlen(m_userpwd) > 0 ){
@@ -451,7 +451,7 @@ int ntrip_caster::parse_data(int sock, char* recv_data, int data_len)
 		}
 
 		/* If Caster as a Base Station, it needs to get the GGA data sent by the Client*/
-		if(!strncasecmp(result, "$GPGGA,", 7)){
+		if(!strncmp(result, "$GPGGA,", 7) || !strncmp(result, "$GNGGA", 7)){
 			if(!check_sum(result)){
 				printf("Check sum pass\n");
 				/* do something. */
