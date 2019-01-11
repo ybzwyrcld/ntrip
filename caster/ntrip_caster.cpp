@@ -201,26 +201,28 @@ void ntrip_caster::run(int time_out)
 						if(recv_count == 0){
 							int sock = m_epoll_events[i].data.fd;
 							if(mnt_list.size() > 0){
-								for(auto it = mnt_list.begin(); it != mnt_list.end(); ++it){
+								auto it = mnt_list.begin();
+								while(it != mnt_list.end()){
 									if(it->value.server_fd == sock){ // is ntrip srever.
-										if(it->value.conn_sock.size() > 0){
-											for(auto cit = it->value.conn_sock.begin(); 
-														cit != it->value.conn_sock.end(); ++cit){
-												epoll_ops(*cit, EPOLL_CTL_ADD, EPOLLIN);
-												close(*cit);
-												it->value.conn_sock.erase(cit);
-											}
+										//printf("ntrip server disconnect\n");
+										auto cit = it->value.conn_sock.begin();
+										while(cit != it->value.conn_sock.end()){
+											epoll_ops(*cit, EPOLL_CTL_DEL, EPOLLIN);
+											close(*cit);
+											it->value.conn_sock.erase(cit);
 										}
 									
 										/* Remove mount point data information from source table list. */	
 										std::string str_mntname(it->value.mntname);
 										std::string str_string("STR;" + str_mntname + ";" + str_mntname + ";");
 
-										for(auto str_it = m_str_list.begin(); str_it != m_str_list.end(); ++str_it){
+										auto str_it = m_str_list.begin();
+										while(str_it != m_str_list.end()){
 											if(str_it->find(str_string) < str_it->length()){
 												m_str_list.erase(str_it);
 												break;
 											}
+											++str_it;
 										}
 
 										str_string = "";
@@ -228,16 +230,22 @@ void ntrip_caster::run(int time_out)
 										mnt_list.erase(it);
 										break;
 									}else{ // is ntrip client.
-										if(it->value.conn_sock.size() > 0){
-											for(auto cit = it->value.conn_sock.begin(); 
-														cit != it->value.conn_sock.end(); ++cit){
-												if(*cit == sock){
-													it->value.conn_sock.erase(cit);
-													break;
-												}
+										bool find_sock = false;
+										auto cit = it->value.conn_sock.begin();
+										while(cit != it->value.conn_sock.end()){
+											if(*cit == sock){
+												//printf("ntrip client disconnect\n");
+												it->value.conn_sock.erase(cit);
+												find_sock = true;
+												break;
 											}
+											++cit;
 										}
+
+										if(find_sock == true)
+											break;
 									}
+									++it;
 								}
 							}
 
@@ -245,6 +253,8 @@ void ntrip_caster::run(int time_out)
 							if(!epoll_ctl(m_epoll_fd, EPOLL_CTL_DEL, sock, &m_epoll_events[i])){
 								close(sock);
 							}
+
+							//printf("deal disconnect end\n");
 							continue;
 						}
 
