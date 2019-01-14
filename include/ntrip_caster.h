@@ -99,10 +99,20 @@ public:
 		list_node<T>* ptr_node = itr.m_ptr;
 		iterator ret = ++itr;
 		if (m_size > 1) {
-			ptr_node->prev->next = ptr_node->next;
-			ptr_node->next->prev = ptr_node->prev;
+			if (ptr_node == m_ptr_head) {
+				m_ptr_head = ptr_node->next;
+			} else {
+				ptr_node->prev->next = ptr_node->next;
+			}
+
+			if (ptr_node == m_ptr_tail) {
+				m_ptr_tail = ptr_node->prev;
+			} else {
+				ptr_node->next->prev = ptr_node->prev;
+			}
 		}else{
 			m_ptr_head = nullptr;
+			m_ptr_tail = m_ptr_head;
 		}
 		delete ptr_node;
 		m_size--;
