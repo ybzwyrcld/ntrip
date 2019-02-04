@@ -52,31 +52,35 @@ int main(int argc, char *argv[])
 		, mountpoint, client_agent, userinfo);
 
 	m_sock = socket(AF_INET, SOCK_STREAM, 0);
-	if(m_sock == -1) {
+	if (m_sock == -1) {
 		printf("create socket fail\n");
 		exit(1);
 	}
 
 	/* Connect to caster. */
 	int ret = connect(m_sock, (struct sockaddr *)&server_addr, sizeof(struct sockaddr_in));
-	if(ret < 0){
+	if (ret < 0) {
 		printf("connect caster fail\n");
 		exit(1);
 	}
 
+	/* Set socket no block. */
+	int flags = fcntl(m_sock, F_GETFL);
+	fcntl(m_sock, F_SETFL, flags | O_NONBLOCK);
+
 	/* Send request data. */
 	ret = send(m_sock, request_data, strlen(request_data), 0);
-	if(ret < 0){
+	if (ret < 0) {
 		printf("send request fail\n");
 		exit(1);
 	}
 
 	/* Wait for request to connect caster success. */
-	while(1){
+	while (1) {
 		ret = recv(m_sock, (void *)recv_buf, sizeof(recv_buf), 0);
-		if(ret > 0 && !strncmp(recv_buf, "ICY 200 OK\r\n", 12)){
+		if (ret > 0 && !strncmp(recv_buf, "ICY 200 OK\r\n", 12)) {
 			ret = send(m_sock, gpgga, strlen(gpgga), 0);
-			if(ret < 0){
+			if (ret < 0) {
 				printf("send gpgga data fail\n");
 				exit(1);
 			}
@@ -85,17 +89,16 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	/* Receive data returned by caster. */
-	while(1){
-		start = time(NULL);
-		ret = recv(m_sock, (void *)recv_buf, sizeof(recv_buf), 0);
+	/* Sent data to Server. */
+	start = time(NULL);
+	while (1) {
 		stop = time(NULL);
-		if(ret > 0){
-			printf("recv data:[%d] used time:[%d]\n", ret, (int)(stop - start));
-			print_char(recv_buf, ret);
-		}else{
-			printf("remote socket close!!!\n");
-			break;
+		if (stop - start == 1) {
+			start = time(NULL);
+			ret = send(m_sock, gpgga, strlen(gpgga), 0);
+			if (ret < 0) {
+				printf("send gpgga data fail\n");
+			}
 		}
 	}
 

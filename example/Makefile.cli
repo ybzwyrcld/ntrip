@@ -1,15 +1,14 @@
 CC=g++
 CFLAGS=-Wall -std=c++11
 
-TARGET = NTRIPCaster
+TARGET = NTRIPClient
 
 all: $(TARGET)
-	mv $(TARGET) ./run
+	mv $(TARGET) ../run
 
 
-SRCS = main.cpp \
-	caster/ntrip_caster.cpp \
-	util/ntrip_util.cpp 
+SRCS = ntrip_client.cpp \
+	../util/ntrip_util.cpp 
 
 
 OBJS = $(SRCS:.cpp=.o)
@@ -19,10 +18,10 @@ $(TARGET):$(OBJS)
 	$(CC) -o $@ $^
 
  
-INC = -I./include
+INC = -I../include
 
 clean:
-	rm -rf ./run/* $(OBJS)
+	rm -rf ../run/* $(OBJS)
 
 %.o:%.cpp
 	$(CC) $(CFLAGS) $(INC) -o $@ -c $<

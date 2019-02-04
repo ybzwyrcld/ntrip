@@ -397,7 +397,7 @@ int ntrip_caster::parse_data(int sock, char* recv_data, int data_len)
 					"\r\n"
 					"%s"
 					"ENDSOURCETABLE\r\n",
-					caster_agent, strlen(str_string.c_str()), datetime, str_string.c_str());
+					caster_agent, (int)strlen(str_string.c_str()), datetime, str_string.c_str());
 
 				send_data(sock, st_data, strlen(st_data));
 				delete(st_data);
@@ -452,25 +452,39 @@ int ntrip_caster::parse_data(int sock, char* recv_data, int data_len)
 		}
 
 		/* If Caster as a Base Station, it needs to get the GGA data sent by the Client*/
-		if(!strncmp(result, "$GPGGA,", 7) || !strncmp(result, "$GNGGA", 7)){
+		if(!strncmp(result, "$GPGGA,", 7) || !strncmp(result, "$GNGGA,", 7)){
 			if(!check_sum(result)){
 				printf("Check sum pass\n");
-				/* do something. */
+
+				/* get Server socket. */
+				bool send_flag = false;
+				auto it = mnt_list.begin();
+				while(it != mnt_list.end()){
+					if(it->value.server_fd == sock)
+						break;
+					auto cit = it->value.conn_sock.begin();
+					while(cit != it->value.conn_sock.end()){
+						if(*cit == sock){
+							send_flag = true;
+							break;
+						}
+						++cit;
+					}
+					if(send_flag)
+						break;
+					else
+						++it;
+				}
+
+				/* send GGA data to Server. */
+				if(send_flag)
+					send_data(it->value.server_fd, recv_data, data_len);
+
 				return 0;
 			}
 		}
 	}
 
 	return 0;
-}
-
-int main(int argc, char *argv[])
-{
-	ntrip_caster my_caster;
-	my_caster.init(8090, 30);
-	//my_epoll.init("127.0.0.1", 8090, 10);
-	my_caster.run(2000);
-
-	return  0;
 }
 

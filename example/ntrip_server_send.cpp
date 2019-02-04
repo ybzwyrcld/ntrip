@@ -1,3 +1,6 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include <unistd.h> 
 #include <fcntl.h> 
 #include <errno.h>
@@ -7,16 +10,20 @@
 #include <netinet/in.h> 
 #include <arpa/inet.h> 
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
+#include <iostream>
+#include <fstream>
 
 #include <ntrip_util.h>
+
+using std::ifstream;
+using std::ofstream;
+using std::ios;
 
 int main(void)
 {
 	int m_sock;
 	int ret;
+	ofstream ofile;
 	char recv_buf[1024] = {0};	
 	char send_buf[1024] = {0};
 	char userinfo_raw[48] = {0};
@@ -59,43 +66,48 @@ int main(void)
 			0xd3, 0x00, 0x70, 0x8e, 0x43, 0x56, 0x45, 0x00, 0x00, 0x55, 0xfb, 0x89, 0xff, 0xff, '\r', '\n'};
 
 	m_sock= socket(AF_INET, SOCK_STREAM, 0);
-	if(m_sock == -1) {
+	if (m_sock == -1) {
 		exit(1);
 	}
 
 	/* Connect to caster. */
 	ret = connect(m_sock, (struct sockaddr *)&server_addr, sizeof(struct sockaddr_in));
-	if(ret < 0){
+	if (ret < 0) {
 		printf("connect to caster fail!!!\n");
 		exit(1);
 	}
 
+	/* Set socket no block. */
+	int flags = fcntl(m_sock, F_GETFL);
+	fcntl(m_sock, F_SETFL, flags | O_NONBLOCK);
+
 	/* Send request data. */
 	ret = send(m_sock, send_buf, strlen(send_buf), 0);	
-	if(ret < 0){
+	if (ret < 0) {
 		printf("send request fail!!!\n");
 		exit(1);
 	}
 
 	/* Wait for request to connect caster success. */
 	printf("waitting...\n");
-	while(1){
+	while (1) {
 		memset(recv_buf, 0x0, 1024);
 		ret = recv(m_sock, recv_buf, 1024, 0);
-		if(ret > 0){
+		if (ret > 0) {
 			printf("recv: \n%s", recv_buf);
 		}
-		if(ret > 0 && !strncmp(recv_buf, "ICY 200 OK\r\n", 12)){
+		if (ret > 0 && !strncmp(recv_buf, "ICY 200 OK\r\n", 12)) {
 			break;
 		}
 	}
 
 	/* Send data to caster. */
-	while(1){
+	while (1) {
 		ret = send(m_sock, example_data, sizeof(example_data), 0);
-		if(ret > 0){
+		if (ret > 0) {
 			printf("send example_data ok\n");
 		}
+
 		sleep(1);
 	}
 

@@ -5,7 +5,7 @@
 
 #include <ntrip_util.h>
 
-void print_char(char *src, int len)
+void print_char(const char *src, const int &len)
 {
 	for(int i = 0; i < len; ++i){
 		printf("%c", (unsigned char)src[i]);
@@ -13,7 +13,7 @@ void print_char(char *src, int len)
 	printf("\n");
 }
 
-void print_char_hex(char *src, int len)
+void print_char_hex(const char *src, const int &len)
 {
 	for(int i = 0; i < len; ++i){
 		printf("%02x ", (unsigned char)src[i]);
@@ -21,7 +21,7 @@ void print_char_hex(char *src, int len)
 	printf("\n");
 }
 
-int check_sum(char *src)
+int check_sum(const char *src)
 {
 	int sum = 0, num = 0;
 
@@ -32,23 +32,23 @@ int check_sum(char *src)
 	return sum - num;
 }
 
-int ch2index(char ch)
+int ch2index(const char &ch)
 {
 	int i;
-	for(i=0; i < (int)strlen(base64_code_table); ++i){
+	for (i=0; i < (int)strlen(base64_code_table); ++i) {
 		if(ch == base64_code_table[i])
 			return i;
 	}
 	return -1;
 }
 
-char index2chr(int index)
+char index2chr(const int &index)
 {
 	return base64_code_table[index];
 }
 
 
-int base64_encode(char *src, char *result)
+int base64_encode(const char *src, char *result)
 {
 	char temp[3] = {0};
 	int i = 0, j = 0, count = 0;
@@ -84,7 +84,7 @@ int base64_encode(char *src, char *result)
 }
 
 
-int base64_decode(char *src, char *usr, char *pwd)
+int base64_decode(const char *src, char *usr, char *pwd)
 {
 	char result[64] = {0};
 	char temp[4] = {0};
@@ -113,7 +113,7 @@ int base64_decode(char *src, char *usr, char *pwd)
 }
 
 
-int get_sourcetable(char *data, int data_len)
+int get_sourcetable(char *data, const int &data_len)
 {
 	int fsize = 0;
 
