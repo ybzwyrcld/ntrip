@@ -141,7 +141,6 @@ public:
 	int recv_data(int sock, char *recv_buf);
 	int send_data(int sock, const char *send_buf, int buf_len);
 	void run(int time_out);
-	void epoll_ops(int sock, int op, uint32_t events);
 	int parse_data(int sock, char* recv_buf, int len);
 
 private:

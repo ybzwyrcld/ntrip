@@ -16,6 +16,36 @@
 #include <ntrip_util.h>
 
 
+static int epoll_register(const int &epoll_fd, const int &fd)
+{
+	struct epoll_event ev;
+	int ret, flags;
+
+	/* important: make the fd non-blocking */
+	flags = fcntl(fd, F_GETFL);
+	fcntl(fd, F_SETFL, flags | O_NONBLOCK);
+
+	ev.events = EPOLLIN;
+	//ev.events = EPOLLIN | EPOLLET;
+	ev.data.fd = fd;
+	do {
+	    ret = epoll_ctl(epoll_fd, EPOLL_CTL_ADD, fd, &ev);
+	} while (ret < 0 && errno == EINTR);
+
+	return ret;
+}
+
+static int epoll_deregister(const int &epoll_fd, const int &fd)
+{
+	int ret;
+
+	do {
+		ret = epoll_ctl(epoll_fd, EPOLL_CTL_DEL, fd, NULL);
+	} while (ret < 0 && errno == EINTR);
+
+	return ret;
+}
+
 ntrip_caster::ntrip_caster()
 {
 	m_listen_sock = 0;
@@ -63,7 +93,7 @@ bool ntrip_caster::init(int port , int sock_count)
 	}
 
 	m_epoll_fd = epoll_create(sock_count);
-	epoll_ops(m_listen_sock, EPOLL_CTL_ADD, EPOLLIN);
+	epoll_register(m_epoll_fd, m_listen_sock);
 
 	return true;
 }
@@ -96,7 +126,7 @@ bool ntrip_caster::init(const char *ip, int port , int sock_count)
 	}
 
 	m_epoll_fd = epoll_create(sock_count);
-	epoll_ops(m_listen_sock, EPOLL_CTL_ADD, EPOLLIN);
+	epoll_register(m_epoll_fd, m_listen_sock);
 
 	return true;
 }
@@ -108,7 +138,7 @@ int ntrip_caster::accept_new_client()
 	socklen_t clilen = sizeof(struct sockaddr); 
 
 	int new_sock = accept(m_listen_sock, (struct sockaddr*)&client_addr, &clilen);	
-	epoll_ops(new_sock, EPOLL_CTL_ADD, EPOLLIN);
+	epoll_register(m_epoll_fd, new_sock);
 	
 	return new_sock;
 }
@@ -124,7 +154,7 @@ int ntrip_caster::recv_data(int sock, char *recv_buf)
 		ret = recv(sock, buf, sizeof(buf), 0);
 		if(ret <= 0)
 		{
-			epoll_ops(sock, EPOLL_CTL_DEL, EPOLLERR);
+			epoll_deregister(m_epoll_fd, sock);
 			close(sock);
 			break;
 		}else if(ret < 1024){
@@ -151,7 +181,7 @@ int ntrip_caster::send_data(int sock, const char *send_buf, int buf_len)
 		else
 			ret = send(sock, send_buf + len, 1024, 0);
 		if(ret <= 0) {
-			epoll_ops(sock, EPOLL_CTL_DEL, EPOLLERR);
+			epoll_deregister(m_epoll_fd, sock);
 			close(sock);
 			break;
 		}else{
@@ -163,10 +193,6 @@ int ntrip_caster::send_data(int sock, const char *send_buf, int buf_len)
 		}
 	}
 
-	if(ret > 0){
-		epoll_ops(sock, EPOLL_CTL_MOD, EPOLLIN);
-	}
-		
 	return ret <= 0 ? ret : len;
 }
 
@@ -204,10 +230,10 @@ void ntrip_caster::run(int time_out)
 								auto it = mnt_list.begin();
 								while(it != mnt_list.end()){
 									if(it->value.server_fd == sock){ // is ntrip srever.
-										//printf("ntrip server disconnect\n");
+										printf("ntrip server disconnect\n");
 										auto cit = it->value.conn_sock.begin();
 										while(cit != it->value.conn_sock.end()){
-											epoll_ops(*cit, EPOLL_CTL_DEL, EPOLLIN);
+											epoll_deregister(m_epoll_fd, *cit);
 											close(*cit);
 											it->value.conn_sock.erase(cit);
 										}
@@ -234,7 +260,7 @@ void ntrip_caster::run(int time_out)
 										auto cit = it->value.conn_sock.begin();
 										while(cit != it->value.conn_sock.end()){
 											if(*cit == sock){
-												//printf("ntrip client disconnect\n");
+												printf("ntrip client disconnect\n");
 												it->value.conn_sock.erase(cit);
 												find_sock = true;
 												break;
@@ -250,7 +276,7 @@ void ntrip_caster::run(int time_out)
 							}
 
 							/* Remove this socket form epoll listen list. */
-							if(!epoll_ctl(m_epoll_fd, EPOLL_CTL_DEL, sock, &m_epoll_events[i])){
+							if(epoll_deregister(m_epoll_fd, sock) == 0){
 								close(sock);
 							}
 
@@ -270,15 +296,6 @@ void ntrip_caster::run(int time_out)
 			}
 		}
 	}
-}
-
-void ntrip_caster::epoll_ops(int sock, int op, uint32_t events)
-{
-	struct epoll_event ev;
-
-	ev.data.fd = sock;
-	ev.events  = events;
-	epoll_ctl(m_epoll_fd, op, sock, &ev);
 }
 
 int ntrip_caster::parse_data(int sock, char* recv_data, int data_len)
@@ -305,6 +322,8 @@ int ntrip_caster::parse_data(int sock, char* recv_data, int data_len)
 					if(mnt_list.size() && !strncmp(it->value.mntname, m_mnt, strlen(m_mnt))){
 						printf("MountPoint already used!!!\n");
 						send_data(sock, "ERROR - Bad Password\r\n", 22);
+						epoll_deregister(m_epoll_fd, sock);
+						close(sock);
 						return -1;
 					}
 				}
@@ -340,6 +359,8 @@ int ntrip_caster::parse_data(int sock, char* recv_data, int data_len)
 				if(strncmp(m_mnt, str_mnt, strlen(str_mnt)) ||
 						strncmp(m_mnt, str_mnt_check, strlen(str_mnt_check))){
 					send_data(sock, "ERROR - Bad Password\r\n", 22);
+					epoll_deregister(m_epoll_fd, sock);
+					close(sock);
 					return -1;
 				}
 				delete(str_mnt);
@@ -403,6 +424,8 @@ int ntrip_caster::parse_data(int sock, char* recv_data, int data_len)
 				delete(st_data);
 				delete(datetime);
 				str_string= "";
+				epoll_deregister(m_epoll_fd, sock);
+				close(sock);
 				return 0;
 			}
 
@@ -420,6 +443,7 @@ int ntrip_caster::parse_data(int sock, char* recv_data, int data_len)
 			if(mi_ptr == nullptr){
 				printf("MountPoint not find!!!\n");
 				send_data(sock, "HTTP/1.1 401 Unauthorized\r\n", 27);
+				epoll_deregister(m_epoll_fd, sock);
 				return -1;
 			}
 
@@ -438,6 +462,8 @@ int ntrip_caster::parse_data(int sock, char* recv_data, int data_len)
 								strncmp(mi_ptr->password, m_password, strlen(m_password))){
 							printf("Password error!!!\n");
 							send_data(sock, "HTTP/1.1 401 Unauthorized\r\n", 27);
+							epoll_deregister(m_epoll_fd, sock);
+							close(sock);
 							return  -1;
 						}
 
