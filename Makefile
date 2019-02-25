@@ -22,7 +22,7 @@ $(TARGET):$(OBJS)
 INC = -I./include
 
 clean:
-	rm -rf ./run/* $(OBJS)
+	rm -rf ./run/$(TARGET) $(OBJS)
 
 %.o:%.cpp
 	$(CC) $(CFLAGS) $(INC) -o $@ -c $<

@@ -95,9 +95,20 @@ int main(void)
 		ret = recv(m_sock, recv_buf, 1024, 0);
 		if (ret > 0) {
 			printf("recv: \n%s", recv_buf);
+			if (!strncmp(recv_buf, "ICY 200 OK\r\n", 12))
+				break;
 		}
-		if (ret > 0 && !strncmp(recv_buf, "ICY 200 OK\r\n", 12)) {
-			break;
+	}
+
+	/* Waiting for a GGA data, optional. */
+	while (1) {
+		memset(recv_buf, 0x0, 1024);
+		ret = recv(m_sock, recv_buf, 1024, 0);
+		if (ret > 0) {
+			if (!strncmp(recv_buf, "$GNGGA", 6)  || !strncmp(recv_buf, "$GPGGA", 6)) {
+				send(m_sock, "recv ok", 8, 0);
+				break;
+			}
 		}
 	}
 

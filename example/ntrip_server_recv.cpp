@@ -100,7 +100,7 @@ int main(void)
 	}
 
 	time_t t = time(0);
-    char path[64];
+	char path[64];
 	strftime(path, sizeof(path), "./%Y%m%d%H.nmea", localtime(&t));
 
 	/* Receive ntrip client data. */
@@ -108,6 +108,7 @@ int main(void)
 		memset(recv_buf, 0x0, 1024);
 		ret = recv(m_sock, recv_buf, 1024, 0);
 		if (ret > 0) {
+			send(m_sock, "recv ok", 7, 0);
 			//printf("recv: \n%s", recv_buf);
 			printf("recv: \n");
 			printf("%s\n", recv_buf);

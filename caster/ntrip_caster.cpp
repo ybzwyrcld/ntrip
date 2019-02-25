@@ -503,8 +503,24 @@ int ntrip_caster::parse_data(int sock, char* recv_data, int data_len)
 				}
 
 				/* send GGA data to Server. */
-				if(send_flag)
-					send_data(it->value.server_fd, recv_data, data_len);
+				if(send_flag) {
+					char recv_buff[64] = {0};	
+					int ret = send(it->value.server_fd, recv_data, data_len, 0);
+					if (ret > 0) {
+						while (1) {
+							memset(recv_buff, 0x0, sizeof(recv_buff));
+							ret = recv(it->value.server_fd, recv_buff, sizeof(recv_buff), 0);
+							if (ret > 0) {
+								if(strncmp(recv_buff, "recv ok", 7) == 0){
+									break;
+								} else {
+									send(it->value.server_fd, recv_data, data_len, 0);
+								}
+							}
+						
+						}
+					}
+				}
 
 				return 0;
 			}
