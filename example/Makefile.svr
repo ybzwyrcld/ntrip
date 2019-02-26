@@ -3,10 +3,6 @@ CFLAGS=-Wall -std=c++11
 
 TARGET = NTRIPServer
 
-all: $(TARGET)
-	mv $(TARGET) ../run
-
-
 SRCS = ntrip_server.cpp \
 	../util/ntrip_util.cpp 
 
@@ -19,6 +15,8 @@ $(TARGET):$(OBJS)
 
  
 INC = -I../include
+
+all: $(TARGET)
 
 clean:
 	rm -rf ../run/$(TARGET) $(OBJS)

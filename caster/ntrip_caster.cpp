@@ -307,13 +307,14 @@ int ntrip_caster::parse_data(int sock, char* recv_data, int data_len)
 	char m_username[16] = {0};
 	char m_password[16] = {0};
 
-	printf("Received [%d] btyes data:\n", data_len);
-	print_char(recv_data, data_len);
+	//printf("Received [%d] btyes data:\n", data_len);
+	//print_char(recv_data, data_len);
 
 	result = strtok(temp, "\n");
 	if(result != NULL) {
 		/* Server request to connect to Caster. */
 		if(!strncmp(result, "POST /", 6) && strstr(result, "HTTP/1.1")){
+			print_char(recv_data, data_len);
 			/* Check mountpoint. */
 			sscanf(result, "%*[^/]%*c%[^ ]", m_mnt);
 			//printf("MountPoint: [%s]\n", m_mnt);
@@ -390,6 +391,7 @@ int ntrip_caster::parse_data(int sock, char* recv_data, int data_len)
 
 		/* Client request to get the Source Table or Server's data. */
 		if(!strncmp(result, "GET /", 5) && (strstr(result, "HTTP/1.1") || strstr(result, "HTTP/1.0"))){
+			print_char(recv_data, data_len);
 			/* Check mountpoint. */
 			sscanf(result, "%*[^/]%*c%[^ ]", m_mnt);
 			//printf("MountPoint: [%s]\n", m_mnt);
@@ -480,8 +482,7 @@ int ntrip_caster::parse_data(int sock, char* recv_data, int data_len)
 		/* If Caster as a Base Station, it needs to get the GGA data sent by the Client*/
 		if(!strncmp(result, "$GPGGA,", 7) || !strncmp(result, "$GNGGA,", 7)){
 			if(!check_sum(result)){
-				printf("Check sum pass\n");
-
+				//printf("Check sum pass\n");
 				/* get Server socket. */
 				bool send_flag = false;
 				auto it = mnt_list.begin();
@@ -503,7 +504,7 @@ int ntrip_caster::parse_data(int sock, char* recv_data, int data_len)
 				}
 
 				/* send GGA data to Server. */
-				if(send_flag) {
+				if (send_flag) {
 					char recv_buff[64] = {0};	
 					int ret = send(it->value.server_fd, recv_data, data_len, 0);
 					if (ret > 0) {
@@ -512,6 +513,7 @@ int ntrip_caster::parse_data(int sock, char* recv_data, int data_len)
 							ret = recv(it->value.server_fd, recv_buff, sizeof(recv_buff), 0);
 							if (ret > 0) {
 								if(strncmp(recv_buff, "recv ok", 7) == 0){
+									print_char(recv_data, data_len);
 									break;
 								} else {
 									send(it->value.server_fd, recv_data, data_len, 0);
@@ -520,6 +522,9 @@ int ntrip_caster::parse_data(int sock, char* recv_data, int data_len)
 						
 						}
 					}
+				} else if (it == mnt_list.end()) {
+					epoll_deregister(m_epoll_fd, sock);
+					close(sock);
 				}
 
 				return 0;
