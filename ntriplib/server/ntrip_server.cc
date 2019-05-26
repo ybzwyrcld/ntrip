@@ -40,21 +40,21 @@ int main(int argc, char **argv) {
   server_addr.sin_port = htons(server_port);
   server_addr.sin_addr.s_addr = inet_addr(server_ip);
 
-  // Generate base64 encoding of username and passwd.
+  // Generate base64 encoding of username and password.
   snprintf(userinfo_raw, 64 , "%s:%s", user, passwd);
   Base64Encode(userinfo_raw, userinfo);
   // Generate request example_data format of ntrip.
   snprintf(send_buf, 1023 ,
-    "POST /%s HTTP/1.1\r\n"
-    "Host: %s:%d\r\n"
-    "Ntrip-Version: Ntrip/2.0\r\n"
-    "User-Agent: %s\r\n"
-    "Authorization: Basic %s\r\n"
-    "Ntrip-STR: %s\r\n"
-    "Connection: close\r\n"
-    "Transfer-Encoding: chunked\r\n",
-    mountpoint, server_ip, server_port,
-    kServerAgent, userinfo, kNtripStr);
+           "POST /%s HTTP/1.1\r\n"
+           "Host: %s:%d\r\n"
+           "Ntrip-Version: Ntrip/2.0\r\n"
+           "User-Agent: %s\r\n"
+           "Authorization: Basic %s\r\n"
+           "Ntrip-STR: %s\r\n"
+           "Connection: close\r\n"
+           "Transfer-Encoding: chunked\r\n",
+           mountpoint, server_ip, server_port,
+           kServerAgent, userinfo, kNtripStr);
 
   unsigned char example_data[] = {
                     0xd3, 0x00, 0x70, 0x8e, 0x43, 0x56, 0x45, 0x00, 0x00,

@@ -50,6 +50,41 @@ static int EpollDeregister(const int &epoll_fd, const int &fd) {
   return ret;
 }
 
+static void PrepareBufferLine(const char *buf, const int &buf_len,
+                              std::vector<std::string> &buffer_line) {
+  char *temp = new char[buf_len + 1];
+  memset(temp, 0x0, buf_len + 1);
+  memcpy(temp, buf, buf_len + 1);
+  char *result = strtok(temp, "\n");
+  while (result != nullptr) {
+    std::string line(result);
+    buffer_line.push_back(line);
+    result = strtok(NULL, "\n");
+  }
+  reverse(buffer_line.begin(), buffer_line.end());
+  delete [] temp;
+}
+
+static void ClearClientConnectInMountPoint(std::list<int> &list) {
+  if (!list.empty()) {
+    auto it = list.begin();
+    while (it != list.end()) {
+      close(*it);
+      it = list.erase(it);
+    }
+  }
+}
+static void ClearAllConnectInMountPoint(std::list<MountPoint> &list) {
+  if (!list.empty()) {
+    auto it = list.begin();
+    while (it != list.end()) {
+      ClearClientConnectInMountPoint(it->client_socket_list);
+      close(it->server_fd);
+      it = list.erase(it);
+    }
+  }
+}
+
 NtripCaster::~NtripCaster() {
   if (listen_sock_ > 0) {
     close(listen_sock_);
@@ -60,7 +95,7 @@ NtripCaster::~NtripCaster() {
   if (epoll_events_ != nullptr) {
     delete [] epoll_events_;
   }
-  mount_point_list_.clear();
+  ClearAllConnectInMountPoint(mount_point_list_);
   ntrip_str_list_.clear();
 }
 
@@ -191,16 +226,17 @@ int NtripCaster::NtripCasterWait(const int &time_out) {
 }
 
 void NtripCaster::Run(const int &time_out) {
+  int ret;
+  int alive_count;
   char *recv_buf = new char[MAX_LEN];
   char *send_buf = new char[MAX_LEN];
-  int alive_count;
 
   while (1) {
-    int ret = NtripCasterWait(time_out);
+    ret = NtripCasterWait(time_out);
     if (ret == 0) {
       printf("Time out\n");
       continue;
-    }else if (ret == -1) {
+    } else if (ret == -1) {
       printf("Error\n");
     } else {
       alive_count = ret;
@@ -213,64 +249,18 @@ void NtripCaster::Run(const int &time_out) {
           }
         } else {
           if (epoll_events_[i].events & EPOLLIN) {
-            int recv_count = RecvData(epoll_events_[i].data.fd, recv_buf);
+            memset(recv_buf, 0, MAX_LEN);
+            int ret = RecvData(epoll_events_[i].data.fd, recv_buf);
             // Received count is zero, socket error or disconnect,
             // we need remove this socket form epoll listen list.
-            if (recv_count == 0) {
-              int sock = epoll_events_[i].data.fd;
-              if (!mount_point_list_.empty()) {
-                auto it = mount_point_list_.begin();
-                while (it != mount_point_list_.end()) {
-                  if (it->server_fd == sock) {  // It is ntrip srever.
-                    printf("ntrip server disconnect\n");
-                    auto cit = it->conn_sock.begin();
-                    while (cit != it->conn_sock.end()) {
-                      // EpollDeregister(epoll_fd_, *cit);
-                      close(*cit);
-                      it->conn_sock.erase(cit);
-                    }
-
-                    // Remove mount point information from source table list.
-                    std::string str_mntname(it->mount_point_name);
-                    std::string str_string("STR;" + str_mntname + ";");
-                    auto str_it = ntrip_str_list_.begin();
-                    while (str_it != ntrip_str_list_.end()) {
-                      if (str_it->find(str_string) < str_it->length()) {
-                        ntrip_str_list_.erase(str_it);
-                        break;
-                      }
-                      ++str_it;
-                    }
-                    str_string = "";
-                    str_mntname = "";
-                    mount_point_list_.erase(it);
-                    break;
-                  } else {  // is ntrip client.
-                    bool find_sock = false;
-                    auto cit = it->conn_sock.begin();
-                    while (cit != it->conn_sock.end()) {
-                      if (*cit == sock) {
-                        printf("ntrip client disconnect\n");
-                        it->conn_sock.erase(cit);
-                        find_sock = true;
-                        break;
-                      }
-                      ++cit;
-                    }
-                    if (find_sock == true) {
-                      break;
-                    }
-                  }
-                  ++it;
-                }
+            if (ret > 0) {
+              // Start parsing received's remote data.
+              if (ParseData(epoll_events_[i].data.fd, recv_buf, ret) < 0) {
+                close(epoll_events_[i].data.fd);
               }
-              // Remove this socket form epoll listen list.
-              close(sock);
-              continue;
+            } else if (ret == 0) {
+              DealDisconnect(epoll_events_[i].data.fd);
             }
-            // Start parsing received's remote data.
-            ParseData(epoll_events_[i].data.fd, recv_buf, recv_count);
-            memset(recv_buf, 0, MAX_LEN);
           } else if (epoll_events_[i].events & EPOLLOUT) {
             SendData(epoll_events_[i].data.fd, send_buf, strlen(send_buf));
             memset(send_buf, 0, MAX_LEN);
@@ -279,230 +269,293 @@ void NtripCaster::Run(const int &time_out) {
       }
     }
   }
+  delete [] send_buf;
+  delete [] recv_buf;
+}
+
+void NtripCaster::DealDisconnect(const int &sock) {
+  if (!mount_point_list_.empty()) {
+    auto it = mount_point_list_.begin();
+    while (it != mount_point_list_.end()) {
+      if (it->server_fd == sock) {  // It is ntrip server.
+        printf("ntrip server disconnect\n");
+        ClearClientConnectInMountPoint(it->client_socket_list);
+        // Remove mount point information from source table list.
+        std::string mount_point_name(it->mount_point_name);
+        std::string ntrip_str("STR;" + mount_point_name + ";");
+        auto str_it = ntrip_str_list_.begin();
+        while (str_it != ntrip_str_list_.end()) {
+          if (str_it->find(ntrip_str) != std::string::npos) {
+            ntrip_str_list_.erase(str_it);
+            break;
+          }
+          ++str_it;
+        }
+        mount_point_list_.erase(it);
+        break;
+      } else {  // is ntrip client.
+        bool find_sock = false;
+        auto cit = it->client_socket_list.begin();
+        while (cit != it->client_socket_list.end()) {
+          if (*cit == sock) {
+            printf("ntrip client disconnect\n");
+            it->client_socket_list.erase(cit);
+            find_sock = true;
+            break;
+          }
+          ++cit;
+        }
+        if (find_sock == true) {
+          break;
+        }
+      }
+      ++it;
+    }
+  }
+  close(sock);
 }
 
 int NtripCaster::ParseData(const int &sock,
                            char* recv_buf, const int &buf_len) {
-  char *result = NULL;
-  int retval = 0;
-  char mount_point_name[16] = {0};
-  char user_passwd_raw[48] = {0};
-  char user[16] = {0};
-  char passwd[16] = {0};
+  int retval = -1;
   std::vector<std::string> buffer_line;
 
   // printf("Received [%d] btyes data:\n", buf_len);
   // PrintChar(recv_buf, buf_len);
-  char *temp = new char[buf_len+1];
-  memcpy(temp, recv_buf, buf_len+1);
   std::string str = recv_buf;
   if ((str.find("GET /") != std::string::npos) ||
       (str.find("POST /") != std::string::npos)) {
-    result = strtok(temp, "\n");
-    while (result != nullptr) {
-      std::string line(result);
-      buffer_line.push_back(line);
-      result = strtok(NULL, "\n");
-    }
-    reverse(buffer_line.begin(), buffer_line.end());
+    PrepareBufferLine(recv_buf, buf_len, buffer_line);
     str = buffer_line.back();
-    buffer_line.pop_back();
     // Server request to connect to Caster.
     if ((str.find("POST /") != std::string::npos) &&
         (str.find("HTTP/1.1") != std::string::npos)) {
       PrintChar(recv_buf, buf_len);
-      // Check mountpoint.
-      sscanf(str.c_str(), "%*[^/]%*c%[^ ]", mount_point_name);
+      retval = DealServerConnectRequest(buffer_line, sock);
+    } else if ((str.find("GET /") != std::string::npos) &&
+               (str.find("HTTP/1.1") != std::string::npos ||
+                str.find("HTTP/1.0") != std::string::npos)) {
+      PrintChar(recv_buf, buf_len);
+      retval = DealClientConnectRequest(buffer_line, sock);
+    }
+  } else {
+    // Data sent by Server, it needs to be forwarded to connected client.
+    if ((retval = TryToForwardServerData(sock, recv_buf, buf_len)) < 0) {
+      // If Caster as a base station, it maybe needs to deal the GGA data
+      // sent by the ntrip client, now it's just printing.
+      if (str.find("$GPGGA,") != std::string::npos ||
+          str.find("$GNGGA,") != std::string::npos) {
+        if (!BccCheckSumCompareForGGA(str.c_str())) {
+          // printf("Check sum pass\n");
+          printf("%s", str.c_str());
+        }
+        retval = 0;
+      }
+    }
+  }
+
+  if (!buffer_line.empty()) {
+    buffer_line.clear();
+  }
+  return retval;
+}
+
+int NtripCaster::DealServerConnectRequest(std::vector<std::string> &buffer_line,
+                                          const int &sock) {
+  char mount_point_name[16] = {0};
+  char user_passwd_raw[48] = {0};
+  char user[16] = {0};
+  char passwd[16] = {0};
+
+  std::string str = buffer_line.back();
+  buffer_line.pop_back();
+  sscanf(str.c_str(), "%*[^/]%*c%[^ ]", mount_point_name);
+  std::string name1 = mount_point_name;
+  std::string name2;
+  // Check mountpoint.
+  if (!mount_point_list_.empty()) {
+    auto it = mount_point_list_.begin();
+    while (it != mount_point_list_.end()) {
+      name2 = it->mount_point_name;
+      if (name1 == name2) {
+        printf("MountPoint already used!!!\n");
+        SendData(sock, "ERROR - Bad Password\r\n", 22);
+        // EpollDeregister(epoll_fd_, sock);
+        return -1;
+      }
+      ++it;
+    }
+  }
+  // printf("Can use this mount point\n");
+  while (!buffer_line.empty()) {
+    str = buffer_line.back();
+    buffer_line.pop_back();
+    if (str.find("Authorization: Basic") != std::string::npos) {
+      sscanf(str.c_str(), "%*[^ ]%*c%*[^ ]%*c%[^\r]", user_passwd_raw);
+      if (strlen(user_passwd_raw) > 0) {
+        // Decode username && password.
+        Base64Decode(user_passwd_raw, user, passwd);
+        // printf("Username: [%s], Password: [%s]\n", passwd, passwd);
+        // Save the mount point information.
+        MountPoint mount_point = {0};
+        str = mount_point_name;
+        memcpy(mount_point.mount_point_name, str.c_str(), str.size());
+        str = user;
+        memcpy(mount_point.username, str.c_str(), str.size());
+        str = passwd;
+        memcpy(mount_point.password, str.c_str(), str.size());
+        mount_point.server_fd = sock;
+        mount_point_list_.push_back(mount_point);
+        // printf("Add mount point ok\n");
+        break;
+      }
+    }
+  }
+  if (!buffer_line.empty()) {
+    str = buffer_line.back();
+    buffer_line.pop_back();
+    std::string name3;
+    // Check mount point information, save to source table list.
+    if (str.find("Ntrip-STR:") != std::string::npos) {
+      char *str_mnt = new char[16];
+      char *str_mnt_check = new char[16];
+      sscanf(str.c_str(), "%*[^;]%*c%[^;]%*c%[^;]", str_mnt, str_mnt_check);
+      // printf("%s, %s\n", str_mnt, str_mnt_check);
+      name2 = str_mnt;
+      name3 = str_mnt_check;
+      if ((name1 != name2) || (name1 != name3)) {
+        SendData(sock, "ERROR - Bad Password\r\n", 22);
+        // EpollDeregister(epoll_fd_, sock);
+        return -1;
+      }
+      delete(str_mnt);
+      delete(str_mnt_check);
+      std::string ntrip_str = str.substr(11, str.size() - 11);
+      ntrip_str += "\n";
+      ntrip_str_list_.push_back(ntrip_str);
+      ntrip_str = "";
+      SendData(sock, "ICY 200 OK\r\n", 12);
+      return 0;
+    }
+  }
+  return -1;
+}
+
+void NtripCaster::SendSourceTableData(const int &sock) {
+  std::string ntrip_str = "";
+  auto it = ntrip_str_list_.begin();
+  while (it != ntrip_str_list_.end()) {
+    ntrip_str.append(*it);
+    ++it;
+  }
+  char *datetime = new char[128];
+  time_t now;
+  time(&now);
+  struct tm *tm_now = localtime(&now);
+  strftime(datetime, 128, "%x %H:%M:%S %Z", tm_now);
+  char *data = new char[MAX_LEN];
+  memset(data, 0x0, MAX_LEN);
+  int len = snprintf(data, MAX_LEN-1,
+                     "SOURCETABLE 200 OK\r\n"
+                     "Server: %s\r\n"
+                     "Content-Type: text/plain\r\n"
+                     "Content-Length: %d\r\n"
+                     "Date: %s\r\n"
+                     "\r\n"
+                     "%s"
+                     "ENDSOURCETABLE\r\n",
+                     kCasterAgent, static_cast<int>(ntrip_str.size()),
+                     datetime, ntrip_str.c_str());
+  SendData(sock, data, len);
+  delete(datetime);
+  delete(data);
+}
+
+int NtripCaster::DealClientConnectRequest(std::vector<std::string> &buffer_line,
+                                          const int &sock) {
+  char mount_point_name[16] = {0};
+  char user_passwd_raw[48] = {0};
+  char user[16] = {0};
+  char passwd[16] = {0};
+
+  std::string str = buffer_line.back();
+  buffer_line.pop_back();
+  sscanf(str.c_str(), "%*[^/]%*c%[^ ]", mount_point_name);
+  if (!strlen(mount_point_name)) {  // Request to get the source table.
+    SendSourceTableData(sock);
+  } else {  // Request to get the differential data.
+    if (!mount_point_list_.empty()) {
       std::string name1 = mount_point_name;
       std::string name2;
-      std::string name3;
-      if (!mount_point_list_.empty()) {
-        auto it = mount_point_list_.begin();
-        while (it != mount_point_list_.end()) {
-          name2 = it->mount_point_name;
-          if (name1 == name2) {
-            printf("MountPoint already used!!!\n");
-            SendData(sock, "ERROR - Bad Password\r\n", 22);
-            // EpollDeregister(epoll_fd_, sock);
-            close(sock);
-            retval = -1;
-            goto out;
-          }
-          ++it;
+      auto it = mount_point_list_.begin();
+      while (it != mount_point_list_.end()) {
+        name2 = it->mount_point_name;
+        if (name1 == name2) {
+          break;
         }
+        ++it;
       }
-      // printf("Can use this mount point\n");
+      if (it == mount_point_list_.end()) {
+        printf("MountPoint not find!!!\n");
+        SendData(sock, "HTTP/1.1 401 Unauthorized\r\n", 27);
+        // EpollDeregister(epoll_fd_, sock);
+        return -1;
+      }
       while (!buffer_line.empty()) {
         str = buffer_line.back();
         buffer_line.pop_back();
         if (str.find("Authorization: Basic") != std::string::npos) {
+          // Get username && password.
           sscanf(str.c_str(), "%*[^ ]%*c%*[^ ]%*c%[^\r]", user_passwd_raw);
           if (strlen(user_passwd_raw) > 0) {
             // Decode username && password.
             Base64Decode(user_passwd_raw, user, passwd);
             // printf("Username: [%s], Password: [%s]\n", passwd, passwd);
-            // Save the mount point information.
-            MountPoint mount_point = {0};
-            str = mount_point_name;
-            memcpy(mount_point.mount_point_name, str.c_str(), str.size());
-            str = user;
-            memcpy(mount_point.username, str.c_str(), str.size());
-            str = passwd;
-            memcpy(mount_point.password, str.c_str(), str.size());
-            mount_point.server_fd = sock;
-            mount_point_list_.push_back(mount_point);
-            // printf("Add mount point ok\n");
-            break;
-          }
-        }
-      }
-      str = buffer_line.back();
-      buffer_line.pop_back();
-      // Check mount point information, save to source table list.
-      if (str.find("Ntrip-STR:") != std::string::npos) {
-        char *str_mnt = new char[16];
-        char *str_mnt_check = new char[16];
-        sscanf(str.c_str(), "%*[^;]%*c%[^;]%*c%[^;]", str_mnt, str_mnt_check);
-        // printf("%s, %s\n", str_mnt, str_mnt_check);
-        name2 = str_mnt;
-        name3 = str_mnt_check;
-        if ((name1 != name2) || (name1 != name3)) {
-          SendData(sock, "ERROR - Bad Password\r\n", 22);
-          // EpollDeregister(epoll_fd_, sock);
-          close(sock);
-          retval = -1;
-          goto out;
-        }
-        delete(str_mnt);
-        delete(str_mnt_check);
-        std::string ntrip_str = str.substr(11, str.size() - 11);
-        ntrip_str += "\n";
-        ntrip_str_list_.push_back(ntrip_str);
-        ntrip_str = "";
-        SendData(sock, "ICY 200 OK\r\n", 12);
-      }
-    } else if ((str.find("GET /") != std::string::npos) &&
-               (str.find("HTTP/1.1") != std::string::npos ||
-                str.find("HTTP/1.0") != std::string::npos)) {
-      PrintChar(recv_buf, buf_len);
-      sscanf(str.c_str(), "%*[^/]%*c%[^ ]", mount_point_name);
-      if (!strlen(mount_point_name)) {  // Request to get the source table.
-        char *st_data = new char[MAX_LEN];
-        std::string ntrip_str = "";
-        auto it = ntrip_str_list_.begin();
-        while (it != ntrip_str_list_.end()) {
-          ntrip_str.append(*it);
-          ++it;
-        }
-        char *datetime = new char[128];
-        time_t now;
-        time(&now);
-        struct tm *tm_now = localtime(&now);
-        strftime(datetime, 128, "%x %H:%M:%S %Z", tm_now);
-        snprintf(st_data, MAX_LEN-1,
-                 "SOURCETABLE 200 OK\r\n"
-                 "Server: %s\r\n"
-                 "Content-Type: text/plain\r\n"
-                 "Content-Length: %d\r\n"
-                 "Date: %s\r\n"
-                 "\r\n"
-                 "%s"
-                 "ENDSOURCETABLE\r\n",
-                 kCasterAgent, static_cast<int>(ntrip_str.size()),
-                 datetime, ntrip_str.c_str());
-
-        SendData(sock, st_data, strlen(st_data));
-        delete(st_data);
-        delete(datetime);
-        ntrip_str = "";
-        // EpollDeregister(epoll_fd_, sock);
-        close(sock);
-      } else {  // Request to get the differential data.
-        if (!mount_point_list_.empty()) {
-          std::string name1 = mount_point_name;
-          std::string name2;
-          auto it = mount_point_list_.begin();
-          while (it != mount_point_list_.end()) {
-            name2 = it->mount_point_name;
-            if (name1 == name2) {
-              break;
+            // Check username && password.
+            std::string user1 = user;
+            std::string user2 = it->username;
+            std::string passwd1 = passwd;
+            std::string passwd2 = it->password;
+            if (user1 != user2 || passwd1 != passwd2) {
+              printf("Password error!!!\n");
+              SendData(sock, "HTTP/1.1 401 Unauthorized\r\n", 27);
+              // EpollDeregister(epoll_fd_, sock);
+              return -1;
             }
-            ++it;
-          }
-          if (it == mount_point_list_.end()) {
-            printf("MountPoint not find!!!\n");
-            SendData(sock, "HTTP/1.1 401 Unauthorized\r\n", 27);
-            EpollDeregister(epoll_fd_, sock);
-            retval = -1;
-            goto out;
-          }
-          while (!buffer_line.empty()) {
-            str = buffer_line.back();
-            buffer_line.pop_back();
-            if (str.find("Authorization: Basic") != std::string::npos) {
-              // Get username && password.
-              sscanf(str.c_str(), "%*[^ ]%*c%*[^ ]%*c%[^\r]", user_passwd_raw);
-              if (strlen(user_passwd_raw) > 0) {
-                // Decode username && password.
-                Base64Decode(user_passwd_raw, user, passwd);
-                // printf("Username: [%s], Password: [%s]\n", passwd, passwd);
-                // Check username && password.
-                std::string user1 = user;
-                std::string user2 = it->username;
-                std::string passwd1 = passwd;
-                std::string passwd2 = it->password;
-                if (user1 != user2 || passwd1 != passwd2) {
-                  printf("Password error!!!\n");
-                  SendData(sock, "HTTP/1.1 401 Unauthorized\r\n", 27);
-                  // EpollDeregister(epoll_fd_, sock);
-                  close(sock);
-                  retval = -1;
-                  break;
-                }
-                SendData(sock, "ICY 200 OK\r\n", 12);
-                it->conn_sock.push_back(sock);
-                // printf("Client connect ok\n");
-                break;
-              }
-            }
+            SendData(sock, "ICY 200 OK\r\n", 12);
+            it->client_socket_list.push_back(sock);
+            // printf("Client connect ok\n");
+            return 0;
           }
         }
       }
-    }
-  } else {
-    // Data sent by Server, it needs to be forwarded to connected client.
-    if (!mount_point_list_.empty()) {
-      auto it = mount_point_list_.begin();
-      while (it != mount_point_list_.end()) {
-        if (it->server_fd == sock) {
-          if (!it->conn_sock.empty()) {
-            auto cit = it->conn_sock.begin();
-            while (cit != it->conn_sock.end()) {
-              SendData(*cit, recv_buf, buf_len);
-              //printf("forward %d byte data\n", buf_len);
-              ++cit;
-            }
-            goto out;
-          }
-        }
-       ++it;
-      }
-    }
-
-    // If Caster as a Base Station, it maybe needs to
-    // deal the GGA data sent by the ntrip client.
-    if (str.find("$GPGGA,") != std::string::npos ||
-        str.find("$GNGGA,") != std::string::npos) {
-      if (!BccCheckSumCompareForGGA(str.c_str())) {
-        // printf("Check sum pass\n");
-        printf("%s", str.c_str());
-      }
+    } else {
+      SendData(sock, "HTTP/1.1 401 Unauthorized\r\n", 27);
+      // EpollDeregister(epoll_fd_, sock);
     }
   }
+  return -1;
+}
 
-out:
-  delete [] temp;
-  buffer_line.clear();
-  return retval;
+int NtripCaster::TryToForwardServerData(const int &server_sock,
+                                        const char *buf, const int &buf_len) {
+  if (!mount_point_list_.empty()) {
+    auto it = mount_point_list_.begin();
+    while (it != mount_point_list_.end()) {
+      if (it->server_fd == server_sock) {
+        if (!it->client_socket_list.empty()) {
+          auto cit = it->client_socket_list.begin();
+          while (cit != it->client_socket_list.end()) {
+            SendData(*cit, buf, buf_len);
+            //printf("forward %d byte data\n", buf_len);
+            ++cit;
+          }
+        }
+        return 0;
+      }
+     ++it;
+    }
+  }
+  return -1;
 }
 

@@ -21,7 +21,15 @@ class NtripCaster {
   int RecvData(const int &sock, char *recv_buf);
   int SendData(const int &sock, const char *send_buf, const int &buf_len);
   void Run(const int &time_out);
+  void DealDisconnect(const int &sock);
   int ParseData(const int &sock, char *recv_buf, const int &len);
+  int DealServerConnectRequest(std::vector<std::string> &buffer_line,
+                               const int &sock);
+  void SendSourceTableData(const int &sock);
+  int DealClientConnectRequest(std::vector<std::string> &buffer_line,
+                               const int &sock);
+  int TryToForwardServerData(const int &server_sock,
+                             const char *buf, const int &buf_len);
 
  private:
   int listen_sock_ = -1;

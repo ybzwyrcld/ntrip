@@ -9,7 +9,7 @@ struct MountPoint {
   char username[16];
   char password[16];
   char mount_point_name[16];
-  std::list<int> conn_sock;
+  std::list<int> client_socket_list;
 };
 
 #endif // NTRIPLIB_UTIL_NTRIP_MOUNTPOINT_H_

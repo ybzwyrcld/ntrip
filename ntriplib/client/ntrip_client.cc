@@ -39,7 +39,7 @@ int main(int argc, char *argv[]) {
   server_addr.sin_port = htons(server_port);
   server_addr.sin_addr.s_addr = inet_addr(server_ip);
 
-  // Generate base64 encoding of username and passwd.
+  // Generate base64 encoding of username and password.
   snprintf(userinfo_raw, 63 , "%s:%s", user, passwd);
   Base64Encode(userinfo_raw, userinfo);
 
