@@ -1,4 +1,4 @@
-#include "ntrip.h"
+#include "client.h"
 
 #include <unistd.h>
 
@@ -6,7 +6,7 @@
 #include <vector>
 
 
-using libntrip::Ntrip;
+using libntrip::Client;
 
 int main(void) {
   std::string ip = "127.0.0.1";
@@ -15,16 +15,16 @@ int main(void) {
   std::string passwd  = "passwd";
   std::string mountpoint  = "mountpoint";
 
-  Ntrip ntrip_client;
-  ntrip_client.InitClient(ip, port, user, passwd, mountpoint);
-  ntrip_client.ClientStart();
+  Client ntrip_client;
+  ntrip_client.Init(ip, port, user, passwd, mountpoint);
+  ntrip_client.Start();
 
   int cnt = 5;
   std::vector<char> msg(1024);
   while (cnt--) {
-    if (!ntrip_client.ClientBufferEmpty()) {
+    if (!ntrip_client.BufferEmpty()) {
       msg.clear();
-      if (ntrip_client.ClientBuffer(&msg)) {
+      if (ntrip_client.Buffer(&msg)) {
         for (auto ch : msg) {
           printf("%02X ", ch);
         }
@@ -33,6 +33,6 @@ int main(void) {
     }
     sleep(1);
   }
-  ntrip_client.ClientStop();
+  ntrip_client.Stop();
   return 0;
 }

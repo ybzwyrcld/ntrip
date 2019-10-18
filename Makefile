@@ -7,11 +7,12 @@ INC=-I./include
 LDFLAGS= -lpthread
 
 
-all: ntripclient
+all: ntrip_client
 
 
-ntripclient: examples/ntrip_client.o \
-	src/ntrip.o
+ntrip_client: examples/ntrip_client.o \
+	src/client.o \
+	src/util.o
 	$(CC)g++ $^ ${LDFLAGS} -o $@
 
 
@@ -20,10 +21,10 @@ ntripclient: examples/ntrip_client.o \
 
 
 install:
-	$(CC)strip ntripclient 
+	$(CC)strip ntrip_client 
 
 
 clean:
 	rm -rf src/*.o examples/*.o 
-	rm -rf ntripclient
+	rm -rf ntrip_client
 
