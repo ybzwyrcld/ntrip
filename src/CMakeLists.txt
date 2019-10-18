@@ -1,4 +1,7 @@
 add_sources(
+  caster.cc
+  caster.h
+  mount_point.h
   client.cc
   client.h
   util.cc

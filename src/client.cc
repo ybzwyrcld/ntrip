@@ -64,12 +64,12 @@ bool Client::Start(void) {
   // Generate request data format of ntrip.
   snprintf(request_data, sizeof(request_data),
            "GET /%s HTTP/1.1\r\n"
-           "User-Agent: YumingNtripClient1.0\r\n"
+           "User-Agent: %s\r\n"
            "Accept: */*\r\n"
            "Connection: close\r\n"
            "Authorization: Basic %s\r\n"
            "\r\n",
-           server_mountpoint_.c_str(), userinfo);
+           kClientAgent, server_mountpoint_.c_str(), userinfo);
 
   struct sockaddr_in server_addr;
   memset(&server_addr, 0, sizeof(struct sockaddr_in));
