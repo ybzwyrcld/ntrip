@@ -7,7 +7,7 @@ INC=-I./include
 LDFLAGS= -lpthread
 
 
-all: ntrip_client ntrip_caster
+all: ntrip_client ntrip_caster ntrip_server
 
 
 ntrip_caster: examples/ntrip_caster.o \
@@ -20,14 +20,19 @@ ntrip_client: examples/ntrip_client.o \
 	src/util.o
 	$(CC)g++ $^ ${LDFLAGS} -o $@
 
+ntrip_server: examples/ntrip_server.o \
+	src/server.o \
+	src/util.o
+	$(CC)g++ $^ ${LDFLAGS} -o $@
+
 %.o:%.cc
 	$(CC)g++ $(CFLAGS) $(INC) $(LDFLAGS) -o $@ -c $<
 
 install:
-	$(CC)strip ntrip_caster ntrip_client
+	$(CC)strip ntrip_caster ntrip_client ntrip_server
 
 
 clean:
 	rm -rf src/*.o examples/*.o 
-	rm -rf ntrip_caster ntrip_client
+	rm -rf ntrip_caster ntrip_client ntrip_server
 

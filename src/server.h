@@ -12,9 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef NTRIPLIB_CLIENT_H_
-#define NTRIPLIB_CLIENT_H_
+#ifndef NTRIPLIB_SERVER_H_
+#define NTRIPLIB_SERVER_H_
 
+
+#include <sys/types.h>
+#include <sys/socket.h>
 
 #include <string>
 #include <thread>  // NOLINT.
@@ -23,42 +26,48 @@
 
 namespace libntrip {
 
-class Client {
+class Server {
  public:
-  Client() = default;
-  Client(const Client &) = delete;
-  Client& operator=(const Client &) = delete;
-  Client(const std::string &ip, const int &port,
+  Server() = default;
+  Server(const Server &) = delete;
+  Server& operator=(const Server &) = delete;
+  Server(const std::string &ip, const int &port,
          const std::string &user, const std::string &passwd,
-         const std::string &mountpoint) :
+         const std::string &mountpoint,
+         const std::string &ntrip_str) :
       server_ip_(ip),
       server_port_(port),
       user_(user),
       passwd_(passwd),
-      mountpoint_(mountpoint) { }
-  ~Client();
+      mountpoint_(mountpoint),
+      ntrip_str_(ntrip_str) { }
+  ~Server();
 
   void Init(const std::string &ip, const int &port,
-      const std::string &user, const std::string &passwd,
-      const std::string &mountpoint) {
+            const std::string &user, const std::string &passwd,
+            const std::string &mountpoint, const std::string &ntrip_str) {
     server_ip_ = ip;
     server_port_ = port;
     user_ = user;
     passwd_ = passwd;
     mountpoint_ = mountpoint;
+    ntrip_str_ = ntrip_str;
   }
 
-  bool BufferEmpty(void) const {
-    return buffer_list_.empty();
+  bool SendData(const char *data, const int &size) {
+    return (size == send(socket_fd_, data, size, 0));
   }
-  bool Buffer(std::vector<char> *buffer) {
-    if (BufferEmpty() || buffer == nullptr) return false;
-    buffer->clear();
-    buffer->assign(buffer_list_.front().begin(),
-        buffer_list_.front().end());
-    buffer_list_.pop_front();
-    return true;
+  bool SendData(const std::vector<char> &data) {
+    return SendData(data.data(), data.size());
   }
+  bool SendData(const std::string &data) {
+    return SendData(data.data(), data.size());
+  }
+
+  // TODO(mengyuming@hotmail.com) : Not implemented.
+  void PushData(const char *data, const int &size);
+  void PushData(const std::vector<char> &data);
+  void PushData(const std::string &data);
 
   bool Run(void);
   void Stop(void);
@@ -74,10 +83,11 @@ class Client {
   std::string user_;
   std::string passwd_;
   std::string mountpoint_;
+  std::string ntrip_str_;
   int socket_fd_ = -1;
-  std::list<std::vector<char>> buffer_list_;
+  std::list<std::vector<char>> data_list_;
 };
 
 }  // namespace libntrip
 
-#endif  // NTRIPLIB_CLIENT_H_
+#endif  // NTRIPLIB_SERVER_H_

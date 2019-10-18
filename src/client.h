@@ -33,9 +33,9 @@ class Client {
          const std::string &mountpoint) :
       server_ip_(ip),
       server_port_(port),
-      server_user_(user),
-      server_passwd_(passwd),
-      server_mountpoint_(mountpoint) { }
+      user_(user),
+      passwd_(passwd),
+      mountpoint_(mountpoint) { }
   ~Client();
 
   void Init(const std::string &ip, const int &port,
@@ -43,9 +43,9 @@ class Client {
       const std::string &mountpoint) {
     server_ip_ = ip;
     server_port_ = port;
-    server_user_ = user;
-    server_passwd_ = passwd;
-    server_mountpoint_ = mountpoint;
+    user_ = user;
+    passwd_ = passwd;
+    mountpoint_ = mountpoint;
   }
 
   bool BufferEmpty(void) const {
@@ -60,7 +60,7 @@ class Client {
     return true;
   }
 
-  bool Start(void);
+  bool Run(void);
   void Stop(void);
 
  private:
@@ -71,10 +71,10 @@ class Client {
   std::thread thread_;
   std::string server_ip_;
   int server_port_ = -1;
-  std::string server_user_;
-  std::string server_passwd_;
-  std::string server_mountpoint_;
-  int socket_ = -1;
+  std::string user_;
+  std::string passwd_;
+  std::string mountpoint_;
+  int socket_fd_ = -1;
   std::list<std::vector<char>> buffer_list_;
 };
 

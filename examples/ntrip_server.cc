@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "client.h"
+#include "server.h"
 
 #include <unistd.h>
 #include <stdint.h>
@@ -21,33 +21,29 @@
 #include <vector>
 
 
-using libntrip::Client;
+using libntrip::Server;
 
 int main(void) {
   std::string ip = "127.0.0.1";
   int port = 8090;
   std::string user = "test01";
   std::string passwd  = "123456";
+  // Mount point must be consistent with 'ntrip_str',
+  // 'STR;{mountpoint};{mountpoint};'.
   std::string mountpoint  = "RTCM32";
+  std::string ntrip_str = "STR;RTCM32;RTCM32;RTCM 3.2;"
+                          "1004(1),1005/1007(5),PBS(10);2;GPS;SGNET;CHN;"
+                          "31;121;1;1;SGCAN;None;B;N;0;;";
 
-  Client ntrip_client;
-  ntrip_client.Init(ip, port, user, passwd, mountpoint);
-  ntrip_client.Run();
+  Server ntrip_server;
+  ntrip_server.Init(ip, port, user, passwd, mountpoint, ntrip_str);
 
-  int cnt = 5;
-  std::vector<char> msg(1024);
-  while (cnt--) {
-    if (!ntrip_client.BufferEmpty()) {
-      msg.clear();
-      if (ntrip_client.Buffer(&msg)) {
-        for (auto ch : msg) {
-          printf("%02X ", static_cast<uint8_t>(ch));
-        }
-        printf("\n");
-      }
-    }
-    sleep(1);
+  if (!ntrip_server.Run()) exit(1);
+
+  while (1) {
+    // TODO(mengyuming@hotmail.com) : Add your code in here.
   }
-  ntrip_client.Stop();
+
+  ntrip_server.Stop();
   return 0;
 }
