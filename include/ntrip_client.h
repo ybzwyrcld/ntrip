@@ -62,11 +62,15 @@ class NtripClient {
 
   bool Run(void);
   void Stop(void);
+  bool service_is_running(void) const {
+    return service_is_running_;
+  }
 
  private:
   // Thread handler.
   void TheradHandler(void);
 
+  bool service_is_running_ = false;
   bool thread_is_running_ = false;
   std::thread thread_;
   std::string server_ip_;

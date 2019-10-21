@@ -126,13 +126,15 @@ bool NtripServer::Run(void) {
 
   socket_fd_ = socket_fd;
   thread_ = std::thread(&NtripServer::TheradHandler, this);
-  printf("Server starting ...\n");
+  thread_.detach();
+  service_is_running_ = true;
+  printf("NtripServer starting ...\n");
   return true;
 }
 
 void NtripServer::Stop(void) {
   thread_is_running_ = false;
-  thread_.join();
+  service_is_running_ = false;
   if (socket_fd_ != -1) {
     close(socket_fd_);
     socket_fd_ = -1;
@@ -155,6 +157,13 @@ void NtripServer::TheradHandler(void) {
     ret = send(socket_fd_, example_data, sizeof(example_data), 0);
     if (ret > 0) {
       printf("Send example_data success\n");
+    } else if (ret < 0) {
+      if ((errno == EAGAIN) || (errno == EWOULDBLOCK) || (errno == EINTR)) {
+        continue;
+      } else {
+        printf("Remote socket error!!!\n");
+        break;
+      }
     } else if (ret == 0) {
       printf("Remote socket close!!!\n");
       break;
@@ -170,6 +179,7 @@ void NtripServer::TheradHandler(void) {
   close(socket_fd_);
   socket_fd_ = -1;
   thread_is_running_ = false;
+  service_is_running_ = false;
 }
 
 }  // namespace libntrip

@@ -158,13 +158,16 @@ bool NtripCaster::Run(void) {
   epoll_fd_ = epoll_create(max_count_);
   EpollRegister(epoll_fd_, listen_sock_);
   main_thread_ = std::thread(&NtripCaster::ThreadHandler, this);
+  main_thread_.detach();
+  service_is_running_ = true;
+  printf("NtripCaster service starting ...\n");
   return true;
 }
 
 void NtripCaster::Stop(void) {
   if (main_thread_is_running_) {
     main_thread_is_running_ = false;
-    main_thread_.join();
+    service_is_running_ = false;
     if (listen_sock_ > 0) {
       EpollUnregister(epoll_fd_, listen_sock_);
       close(listen_sock_);
@@ -226,6 +229,8 @@ void NtripCaster::ThreadHandler(void) {
   }
   delete [] send_buf;
   delete [] recv_buf;
+  main_thread_is_running_ = false;
+  service_is_running_ = false;
 }
 
 int NtripCaster::AcceptNewConnect(void) {
@@ -297,7 +302,7 @@ void NtripCaster::DealDisconnect(const int &sock) {
     auto it = mount_point_list_.begin();
     while (it != mount_point_list_.end()) {
       if (it->server_fd == sock) {  // It is ntrip server.
-        printf("ntrip server disconnect\n");
+        printf("NtripServer disconnect\n");
         ClearClientConnectInMountPoint(&(it->client_socket_list));
         // Remove mount point information from source table list.
         std::string mount_point_name(it->mount_point_name);
@@ -317,7 +322,7 @@ void NtripCaster::DealDisconnect(const int &sock) {
         auto cit = it->client_socket_list.begin();
         while (cit != it->client_socket_list.end()) {
           if (*cit == sock) {
-            printf("ntrip client disconnect\n");
+            printf("NtripClient disconnect\n");
             it->client_socket_list.erase(cit);
             find_sock = true;
             break;
@@ -335,7 +340,7 @@ void NtripCaster::DealDisconnect(const int &sock) {
 }
 
 int NtripCaster::ParseData(const int &sock,
-                      char* recv_buf, const int &buf_len) {
+                           char* recv_buf, const int &buf_len) {
   int retval = -1;
   std::vector<std::string> buffer_line;
 
@@ -380,7 +385,7 @@ int NtripCaster::ParseData(const int &sock,
 }
 
 int NtripCaster::DealServerConnectRequest(std::vector<std::string> *buffer_line,
-                                     const int &sock) {
+                                          const int &sock) {
   char mount_point_name[16] = {0};
   char user_passwd_raw[48] = {0};
   char user[16] = {0};
@@ -491,7 +496,7 @@ void NtripCaster::SendSourceTableData(const int &sock) {
 }
 
 int NtripCaster::DealClientConnectRequest(std::vector<std::string> *buffer_line,
-                                     const int &sock) {
+                                          const int &sock) {
   char mount_point_name[16] = {0};
   char user_passwd_raw[48] = {0};
   char user[16] = {0};
@@ -556,8 +561,9 @@ int NtripCaster::DealClientConnectRequest(std::vector<std::string> *buffer_line,
   return -1;
 }
 
+// TODO(mengyuming@hotmail.com) : Multiple connections still have problems.
 int NtripCaster::TryToForwardServerData(const int &server_sock,
-                                   const char *buf, const int &buf_len) {
+                                        const char *buf, const int &buf_len) {
   if (!mount_point_list_.empty()) {
     auto it = mount_point_list_.begin();
     while (it != mount_point_list_.end()) {

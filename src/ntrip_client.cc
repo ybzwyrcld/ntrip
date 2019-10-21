@@ -95,7 +95,7 @@ bool NtripClient::Run(void) {
 
   // Send request data.
   if (send(socket_fd, request_data, strlen(request_data), 0) < 0) {
-    printf("send request failed!!!\n");
+    printf("Send request failed!!!\n");
     close(socket_fd);
     return false;
   }
@@ -127,13 +127,15 @@ bool NtripClient::Run(void) {
 
   socket_fd_ = socket_fd;
   thread_ = std::thread(&NtripClient::TheradHandler, this);
-  printf("Client starting ...\n");
+  thread_.detach();
+  service_is_running_ = true;
+  printf("NtripClient service starting ...\n");
   return true;
 }
 
 void NtripClient::Stop(void) {
+  service_is_running_ = false;
   thread_is_running_ = false;
-  thread_.join();
   if (socket_fd_ != -1) {
     close(socket_fd_);
     socket_fd_ = -1;
@@ -155,8 +157,15 @@ void NtripClient::TheradHandler(void) {
     memset(recv_buffer, 0x0, sizeof(recv_buffer));
     ret = recv(socket_fd_, recv_buffer, sizeof(recv_buffer), 0);
     if (ret == 0) {
-      printf("remote socket close!!!\n");
+      printf("Remote socket close!!!\n");
       break;
+    } else if (ret < 0) {
+      if ((errno == EAGAIN) || (errno == EWOULDBLOCK) || (errno == EINTR)) {
+        continue;
+      } else {
+        printf("Remote socket error!!!\n");
+        break;
+      }
     } else if (ret > 0) {
       std::vector<char> buffer(recv_buffer, recv_buffer + ret);
       buffer_list_.push_back(buffer);
@@ -165,6 +174,7 @@ void NtripClient::TheradHandler(void) {
   close(socket_fd_);
   socket_fd_ = -1;
   thread_is_running_ = false;
+  service_is_running_ = false;
 }
 
 }  // namespace libntrip

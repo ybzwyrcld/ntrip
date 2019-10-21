@@ -48,6 +48,9 @@ class NtripCaster {
   }
   bool Run(void);
   void Stop(void);
+  bool service_is_running(void) const {
+    return service_is_running_;
+  }
 
  private:
   void ThreadHandler(void);
@@ -66,6 +69,7 @@ class NtripCaster {
                              const char *buf, const int &buf_len);
 
   bool main_thread_is_running_ = false;
+  bool service_is_running_ = false;
   std::string server_ip_;
   int server_port_ = -1;
   int time_out_ = 0;
