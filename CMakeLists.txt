@@ -36,6 +36,7 @@ aux_source_directory(src src_MAIN)
 add_library(${PROJECT_NAME}
   ${src_MAIN}
 )
+set_target_properties(${PROJECT_NAME} PROPERTIES INTERFACE_INCLUDE_DIRECTORIES ${ntrip_include_dirs})
 
 if (NTRIP_BUILD_EXAMPLES)
   add_subdirectory(examples)

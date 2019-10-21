@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "client.h"
+#include "ntrip_client.h"
 
 #include <unistd.h>
 #include <stdint.h>
@@ -21,7 +21,7 @@
 #include <vector>
 
 
-using libntrip::Client;
+using libntrip::NtripClient;
 
 int main(void) {
   std::string ip = "127.0.0.1";
@@ -30,7 +30,7 @@ int main(void) {
   std::string passwd  = "123456";
   std::string mountpoint  = "RTCM32";
 
-  Client ntrip_client;
+  NtripClient ntrip_client;
   ntrip_client.Init(ip, port, user, passwd, mountpoint);
   ntrip_client.Run();
 

@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "server.h"
+#include "ntrip_server.h"
 
 #include <unistd.h>
 #include <stdint.h>
@@ -21,7 +21,7 @@
 #include <vector>
 
 
-using libntrip::Server;
+using libntrip::NtripServer;
 
 int main(void) {
   std::string ip = "127.0.0.1";
@@ -35,7 +35,7 @@ int main(void) {
                           "1004(1),1005/1007(5),PBS(10);2;GPS;SGNET;CHN;"
                           "31;121;1;1;SGCAN;None;B;N;0;;";
 
-  Server ntrip_server;
+  NtripServer ntrip_server;
   ntrip_server.Init(ip, port, user, passwd, mountpoint, ntrip_str);
 
   if (!ntrip_server.Run()) exit(1);

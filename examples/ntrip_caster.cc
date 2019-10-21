@@ -12,13 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "caster.h"
+#include "ntrip_caster.h"
 
 
-using libntrip::Caster;
+using libntrip::NtripCaster;
 
 int main(int argc, char *argv[]) {
-  Caster my_caster;
+  NtripCaster my_caster;
   my_caster.Init(8090, 30, 2000);
   // my_caster.Init("127.0.0.1", 8090, 10, 2000);
   my_caster.Run();

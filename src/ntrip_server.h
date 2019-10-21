@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef NTRIPLIB_SERVER_H_
-#define NTRIPLIB_SERVER_H_
+#ifndef NTRIPLIB_NTRIP_SERVER_H_
+#define NTRIPLIB_NTRIP_SERVER_H_
 
 
 #include <sys/types.h>
@@ -26,12 +26,12 @@
 
 namespace libntrip {
 
-class Server {
+class NtripServer {
  public:
-  Server() = default;
-  Server(const Server &) = delete;
-  Server& operator=(const Server &) = delete;
-  Server(const std::string &ip, const int &port,
+  NtripServer() = default;
+  NtripServer(const NtripServer &) = delete;
+  NtripServer& operator=(const NtripServer &) = delete;
+  NtripServer(const std::string &ip, const int &port,
          const std::string &user, const std::string &passwd,
          const std::string &mountpoint,
          const std::string &ntrip_str) :
@@ -41,7 +41,7 @@ class Server {
       passwd_(passwd),
       mountpoint_(mountpoint),
       ntrip_str_(ntrip_str) { }
-  ~Server();
+  ~NtripServer();
 
   void Init(const std::string &ip, const int &port,
             const std::string &user, const std::string &passwd,
@@ -90,4 +90,4 @@ class Server {
 
 }  // namespace libntrip
 
-#endif  // NTRIPLIB_SERVER_H_
+#endif  // NTRIPLIB_NTRIP_SERVER_H_

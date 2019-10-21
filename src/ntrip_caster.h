@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef NTRIPLIB_CASTER_H_
-#define NTRIPLIB_CASTER_H_
+#ifndef NTRIPLIB_NTRIP_CASTER_H_
+#define NTRIPLIB_NTRIP_CASTER_H_
 
 #include <sys/epoll.h>
 
@@ -27,12 +27,12 @@
 
 namespace libntrip {
 
-class Caster {
+class NtripCaster {
  public:
-  Caster() = default;
-  Caster(const Caster &) = delete;
-  Caster& operator=(const Caster&) = delete;
-  ~Caster();
+  NtripCaster() = default;
+  NtripCaster(const NtripCaster &) = delete;
+  NtripCaster& operator=(const NtripCaster&) = delete;
+  ~NtripCaster();
 
   void Init(const int &port, const int &sock_count, const int &time_out) {
     server_port_ = port;
@@ -51,7 +51,7 @@ class Caster {
 
  private:
   void ThreadHandler(void);
-  int CasterWait(const int &time_out);
+  int NtripCasterWait(const int &time_out);
   int AcceptNewConnect(void);
   int RecvData(const int &sock, char *recv_buf);
   int SendData(const int &sock, const char *send_buf, const int &buf_len);
@@ -80,4 +80,4 @@ class Caster {
 
 }  // namespace libntrip
 
-#endif  // NTRIPLIB_CATSER_H_
+#endif  // NTRIPLIB_NTRIP_CASTER_H_

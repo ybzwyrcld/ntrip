@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef NTRIPLIB_UTIL_H_
-#define NTRIPLIB_UTIL_H_
+#ifndef NTRIPLIB_NTRIP_UTIL_H_
+#define NTRIPLIB_NTRIP_UTIL_H_
 
 
 namespace libntrip {
@@ -31,4 +31,4 @@ int GetSourcetable(const char *path, char *data, const int &data_len);
 
 }  // namespace libntrip
 
-#endif  // NTRIPLIB_UTIL_H_
+#endif  // NTRIPLIB_NTRIP_UTIL_H_

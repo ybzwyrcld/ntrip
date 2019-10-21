@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "caster.h"
+#include "ntrip_caster.h"
 
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -33,7 +33,7 @@
 #include <string>
 #include <vector>
 
-#include "util.h"
+#include "ntrip_util.h"
 
 
 namespace libntrip {
@@ -109,7 +109,7 @@ static void ClearAllConnectInMountPoint(std::list<MountPoint> *list) {
 // Public.
 //
 
-Caster::~Caster() {
+NtripCaster::~NtripCaster() {
   if (main_thread_is_running_) {
     Stop();
   }
@@ -126,7 +126,7 @@ Caster::~Caster() {
   ntrip_str_list_.clear();
 }
 
-bool Caster::Run(void) {
+bool NtripCaster::Run(void) {
   struct sockaddr_in server_addr;
   memset(&server_addr, 0, sizeof(struct sockaddr_in));
   server_addr.sin_family = AF_INET;
@@ -157,11 +157,11 @@ bool Caster::Run(void) {
   }
   epoll_fd_ = epoll_create(max_count_);
   EpollRegister(epoll_fd_, listen_sock_);
-  main_thread_ = std::thread(&Caster::ThreadHandler, this);
+  main_thread_ = std::thread(&NtripCaster::ThreadHandler, this);
   return true;
 }
 
-void Caster::Stop(void) {
+void NtripCaster::Stop(void) {
   if (main_thread_is_running_) {
     main_thread_is_running_ = false;
     main_thread_.join();
@@ -180,14 +180,14 @@ void Caster::Stop(void) {
 // Private.
 //
 
-void Caster::ThreadHandler(void) {
+void NtripCaster::ThreadHandler(void) {
   int ret;
   int alive_count;
   char *recv_buf = new char[kMaxBufferLength];
   char *send_buf = new char[kMaxBufferLength];
 
   while (1) {
-    ret = CasterWait(time_out_);
+    ret = NtripCasterWait(time_out_);
     if (ret == 0) {
       printf("Time out\n");
       continue;
@@ -228,7 +228,7 @@ void Caster::ThreadHandler(void) {
   delete [] recv_buf;
 }
 
-int Caster::AcceptNewConnect(void) {
+int NtripCaster::AcceptNewConnect(void) {
   struct sockaddr_in client_addr;
   memset(&client_addr, 0, sizeof(struct sockaddr_in));
   socklen_t clilen = sizeof(struct sockaddr);
@@ -237,7 +237,7 @@ int Caster::AcceptNewConnect(void) {
   return new_sock;
 }
 
-int Caster::RecvData(const int &sock, char *recv_buf) {
+int NtripCaster::RecvData(const int &sock, char *recv_buf) {
   char buf[1024] = {0};
   int len = 0;
   int ret = 0;
@@ -261,8 +261,8 @@ int Caster::RecvData(const int &sock, char *recv_buf) {
   return ret <= 0 ? ret : len;
 }
 
-int Caster::SendData(const int &sock,
-                     const char *send_buf, const int &buf_len) {
+int NtripCaster::SendData(const int &sock,
+                          const char *send_buf, const int &buf_len) {
   int len = 0;
   int ret = 0;
 
@@ -288,11 +288,11 @@ int Caster::SendData(const int &sock,
   return ret <= 0 ? ret : len;
 }
 
-int Caster::CasterWait(const int &time_out) {
+int NtripCaster::NtripCasterWait(const int &time_out) {
   return epoll_wait(epoll_fd_, epoll_events_, max_count_, time_out);
 }
 
-void Caster::DealDisconnect(const int &sock) {
+void NtripCaster::DealDisconnect(const int &sock) {
   if (!mount_point_list_.empty()) {
     auto it = mount_point_list_.begin();
     while (it != mount_point_list_.end()) {
@@ -334,7 +334,7 @@ void Caster::DealDisconnect(const int &sock) {
   close(sock);
 }
 
-int Caster::ParseData(const int &sock,
+int NtripCaster::ParseData(const int &sock,
                       char* recv_buf, const int &buf_len) {
   int retval = -1;
   std::vector<std::string> buffer_line;
@@ -379,7 +379,7 @@ int Caster::ParseData(const int &sock,
   return retval;
 }
 
-int Caster::DealServerConnectRequest(std::vector<std::string> *buffer_line,
+int NtripCaster::DealServerConnectRequest(std::vector<std::string> *buffer_line,
                                      const int &sock) {
   char mount_point_name[16] = {0};
   char user_passwd_raw[48] = {0};
@@ -460,7 +460,7 @@ int Caster::DealServerConnectRequest(std::vector<std::string> *buffer_line,
   return -1;
 }
 
-void Caster::SendSourceTableData(const int &sock) {
+void NtripCaster::SendSourceTableData(const int &sock) {
   std::string ntrip_str = "";
   auto it = ntrip_str_list_.begin();
   while (it != ntrip_str_list_.end()) {
@@ -490,7 +490,7 @@ void Caster::SendSourceTableData(const int &sock) {
   delete(data);
 }
 
-int Caster::DealClientConnectRequest(std::vector<std::string> *buffer_line,
+int NtripCaster::DealClientConnectRequest(std::vector<std::string> *buffer_line,
                                      const int &sock) {
   char mount_point_name[16] = {0};
   char user_passwd_raw[48] = {0};
@@ -556,7 +556,7 @@ int Caster::DealClientConnectRequest(std::vector<std::string> *buffer_line,
   return -1;
 }
 
-int Caster::TryToForwardServerData(const int &server_sock,
+int NtripCaster::TryToForwardServerData(const int &server_sock,
                                    const char *buf, const int &buf_len) {
   if (!mount_point_list_.empty()) {
     auto it = mount_point_list_.begin();

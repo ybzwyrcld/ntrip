@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef NTRIPLIB_CLIENT_H_
-#define NTRIPLIB_CLIENT_H_
+#ifndef NTRIPLIB_NTRIP_CLIENT_H_
+#define NTRIPLIB_NTRIP_CLIENT_H_
 
 
 #include <string>
@@ -23,12 +23,12 @@
 
 namespace libntrip {
 
-class Client {
+class NtripClient {
  public:
-  Client() = default;
-  Client(const Client &) = delete;
-  Client& operator=(const Client &) = delete;
-  Client(const std::string &ip, const int &port,
+  NtripClient() = default;
+  NtripClient(const NtripClient &) = delete;
+  NtripClient& operator=(const NtripClient &) = delete;
+  NtripClient(const std::string &ip, const int &port,
          const std::string &user, const std::string &passwd,
          const std::string &mountpoint) :
       server_ip_(ip),
@@ -36,7 +36,7 @@ class Client {
       user_(user),
       passwd_(passwd),
       mountpoint_(mountpoint) { }
-  ~Client();
+  ~NtripClient();
 
   void Init(const std::string &ip, const int &port,
       const std::string &user, const std::string &passwd,
@@ -80,4 +80,4 @@ class Client {
 
 }  // namespace libntrip
 
-#endif  // NTRIPLIB_CLIENT_H_
+#endif  // NTRIPLIB_NTRIP_CLIENT_H_
