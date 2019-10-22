@@ -25,6 +25,7 @@ int main(int argc, char *argv[]) {
 
   while (1) {
     // TODO(mengyuming@hotmail.com) : Add your code in here.
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
   }
 
   return 0;

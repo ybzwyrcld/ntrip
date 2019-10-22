@@ -34,7 +34,7 @@ int main(void) {
   ntrip_client.Init(ip, port, user, passwd, mountpoint);
   ntrip_client.Run();
 
-  int cnt = 5;
+  int cnt = 10*100;  // maximum 10s.
   std::vector<char> msg(1024);
   while (cnt--) {
     if (!ntrip_client.BufferEmpty()) {
@@ -45,8 +45,9 @@ int main(void) {
         }
         printf("\n");
       }
+    } else {
+      std::this_thread::sleep_for(std::chrono::milliseconds(10));
     }
-    sleep(1);
   }
   ntrip_client.Stop();
   return 0;
