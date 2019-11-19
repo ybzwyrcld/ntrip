@@ -17,6 +17,7 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
+#include <netinet/tcp.h>
 #include <arpa/inet.h>
 #include <unistd.h>
 #include <fcntl.h>
@@ -123,7 +124,17 @@ bool NtripServer::Run(void) {
   if (timeout <= 0) {
     return false;
   }
-
+  // TCP socket keepalive.
+  int keepalive = 1;  // Enable keepalive attributes.
+  int keepidle = 30;  // Time out for starting detection.
+  int keepinterval = 5;  // Time interval for sending packets during detection.
+  int keepcount = 3;  // Max times for sending packets during detection.
+  setsockopt(socket_fd, SOL_SOCKET, SO_KEEPALIVE, &keepalive,
+             sizeof(keepalive));
+  setsockopt(socket_fd, SOL_TCP, TCP_KEEPIDLE, &keepidle, sizeof(keepidle));
+  setsockopt(socket_fd, SOL_TCP, TCP_KEEPINTVL, &keepinterval,
+             sizeof(keepinterval));
+  setsockopt(socket_fd, SOL_TCP, TCP_KEEPCNT, &keepcount, sizeof(keepcount));
   socket_fd_ = socket_fd;
   thread_ = std::thread(&NtripServer::TheradHandler, this);
   thread_.detach();

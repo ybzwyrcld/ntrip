@@ -19,6 +19,7 @@
 #include <sys/epoll.h>
 
 #include <netinet/in.h>
+#include <netinet/tcp.h>
 #include <arpa/inet.h>
 #include <unistd.h>
 #include <time.h>
@@ -238,6 +239,17 @@ int NtripCaster::AcceptNewConnect(void) {
   memset(&client_addr, 0, sizeof(struct sockaddr_in));
   socklen_t clilen = sizeof(struct sockaddr);
   int new_sock = accept(listen_sock_, (struct sockaddr*)&client_addr, &clilen);
+  // TCP socket keepalive.
+  int keepalive = 1;     // Enable keepalive attributes.
+  int keepidle = 30;     // Time out for starting detection.
+  int keepinterval = 5;  // Time interval for sending packets during detection.
+  int keepcount = 3;     // Max times for sending packets during detection.
+  setsockopt(new_sock, SOL_SOCKET, SO_KEEPALIVE, &keepalive,
+             sizeof(keepalive));
+  setsockopt(new_sock, SOL_TCP, TCP_KEEPIDLE, &keepidle, sizeof(keepidle));
+  setsockopt(new_sock, SOL_TCP, TCP_KEEPINTVL, &keepinterval,
+             sizeof(keepinterval));
+  setsockopt(new_sock, SOL_TCP, TCP_KEEPCNT, &keepcount, sizeof(keepcount));
   EpollRegister(epoll_fd_, new_sock);
   return new_sock;
 }
