@@ -106,7 +106,11 @@ bool NtripClient::Run(void) {
   while (timeout--) {
     ret = recv(socket_fd, recv_buf, sizeof(recv_buf), 0);
     if ((ret > 0) && !strncmp(recv_buf, "ICY 200 OK\r\n", 12)) {
-      ret = send(socket_fd, gpgga_buffer, strlen(gpgga_buffer), 0);
+      if (gga_buffer_.empty()) {
+        ret = send(socket_fd, gpgga_buffer, strlen(gpgga_buffer), 0);
+      } else {
+        ret = send(socket_fd, gga_buffer_.c_str(), gga_buffer_.size(), 0);
+      }
       if (ret < 0) {
         printf("Send gpgga data fail\n");
         close(socket_fd);
@@ -151,9 +155,6 @@ void NtripClient::Stop(void) {
     close(socket_fd_);
     socket_fd_ = -1;
   }
-  if (!buffer_list_.empty()) {
-    buffer_list_.clear();
-  }
 }
 
 //
@@ -178,9 +179,8 @@ void NtripClient::TheradHandler(void) {
         printf("Remote socket error!!!\n");
         break;
       }
-    } else if (ret > 0) {
-      std::vector<char> buffer(recv_buffer, recv_buffer + ret);
-      buffer_list_.push_back(buffer);
+    } else {
+      callback_(recv_buffer, ret);
     }
   }
   close(socket_fd_);

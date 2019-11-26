@@ -27,27 +27,23 @@ int main(void) {
   std::string ip = "127.0.0.1";
   int port = 8090;
   std::string user = "test01";
-  std::string passwd  = "123456";
-  std::string mountpoint  = "RTCM32";
+  std::string passwd = "123456";
+  std::string mountpoint = "RTCM32";
 
   NtripClient ntrip_client;
   ntrip_client.Init(ip, port, user, passwd, mountpoint);
-  ntrip_client.Run();
-
-  int cnt = 10*100;  // maximum 10s.
-  std::vector<char> msg(1024);
-  while (cnt--) {
-    if (!ntrip_client.BufferEmpty()) {
-      msg.clear();
-      if (ntrip_client.Buffer(&msg)) {
-        for (auto ch : msg) {
-          printf("%02X ", static_cast<uint8_t>(ch));
-        }
-        printf("\n");
-      }
-    } else {
-      std::this_thread::sleep_for(std::chrono::milliseconds(10));
+  ntrip_client.OnReceived([](const char *buffer, const int &size) {
+    printf("Recv[%d]: ", size);
+    for (int i = 0; i < size; ++i) {
+      printf("%02X ", static_cast<uint8_t>(buffer[i]));
     }
+    printf("\n");
+  });
+  ntrip_client.Run();
+  // Exit the program after 10 seconds.
+  int cnt = 10;
+  while (cnt--) {
+    std::this_thread::sleep_for(std::chrono::seconds(1));
   }
   ntrip_client.Stop();
   return 0;
