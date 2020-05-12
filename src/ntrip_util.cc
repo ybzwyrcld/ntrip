@@ -14,7 +14,9 @@
 
 #include "ntrip_util.h"
 
+#include <math.h>
 #include <string.h>
+#include <time.h>
 #include <unistd.h>
 
 #include <string>
@@ -22,6 +24,16 @@
 
 
 namespace libntrip {
+
+namespace {
+
+double DegreeConvertToDDMM(double const& degree) {
+  int deg = static_cast<int>(floor(degree));
+  double minute = degree - deg*1.0;
+  return (deg*1.0 + minute*60.0/100.0);
+}
+
+}  // namespace
 
 //
 // Ntrip util.
@@ -164,6 +176,37 @@ int GetSourcetable(const char *path, char *data, const int &data_len) {
   }
 
   return 0;
+}
+
+int GetGGAFrameData(double const& latitude,
+                    double const& longitude,
+                    double const& altitude,
+                    std::string* const gga_str) {
+  if (gga_str == nullptr) return -1;
+  char src[256] = {0};
+  time_t t = time(nullptr);
+  struct tm *tt = localtime(&t);
+  double timestamp[3];
+  timestamp[0] = tt->tm_hour >= 8 ? tt->tm_hour - 8 : tt->tm_hour + 24 - 8;
+  timestamp[1] = tt->tm_min;
+  timestamp[2] = tt->tm_sec;
+  char *ptr = src;
+  ptr += snprintf(ptr, sizeof(src)+src-ptr,
+      "$GPGGA,%02.0f%02.0f%05.2f,%012.7f,%s,%013.7f,%s,1,"
+      "10,1.2,%.4f,M,-2.860,M,,0000",
+      timestamp[0], timestamp[1], timestamp[2],
+      fabs(DegreeConvertToDDMM(latitude))*100.0,
+      latitude > 0.0 ? "N" : "S",
+      fabs(DegreeConvertToDDMM(longitude))*100.0,
+      longitude > 0.0 ? "E" : "W",
+      altitude);
+  uint8_t checksum = 0;
+  for (char *q = src + 1; q <= ptr; q++) {
+    checksum ^= *q; // check sum.
+  }
+  ptr += snprintf(ptr, sizeof(src)+src-ptr, "*%02X%c%c", checksum, 0x0D, 0x0A);
+  *gga_str = std::string(src, ptr-src);
+  return BccCheckSumCompareForGGA(gga_str->c_str());
 }
 
 }  // namespace libntrip

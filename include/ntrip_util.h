@@ -15,6 +15,8 @@
 #ifndef NTRIPLIB_NTRIP_UTIL_H_
 #define NTRIPLIB_NTRIP_UTIL_H_
 
+#include <string>
+
 
 namespace libntrip {
 
@@ -28,6 +30,8 @@ int BccCheckSumCompareForGGA(const char *src);
 int Base64Encode(const char *src, char *result);
 int Base64Decode(const char *src, char *user, char *passwd);
 int GetSourcetable(const char *path, char *data, const int &data_len);
+int GetGGAFrameData(double const& latitude, double const& longitude,
+                    double const& altitude, std::string* const gga_str);
 
 }  // namespace libntrip
 

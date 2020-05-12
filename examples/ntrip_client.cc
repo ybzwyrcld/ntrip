@@ -20,6 +20,8 @@
 #include <string>
 #include <vector>
 
+#include "ntrip_util.h"
+
 
 using libntrip::NtripClient;
 
@@ -39,6 +41,11 @@ int main(void) {
     }
     printf("\n");
   });
+  std::string gga;
+  if (libntrip::GetGGAFrameData(22.57311, 113.94905, 10.0, &gga) == 0) {
+    printf("GGA buffer: %s\n", gga.c_str());
+    ntrip_client.set_gga_buffer(gga);
+  }
   ntrip_client.Run();
   // Exit the program after 10 seconds.
   int cnt = 10;
@@ -48,3 +55,4 @@ int main(void) {
   ntrip_client.Stop();
   return 0;
 }
+
