@@ -27,6 +27,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <chrono>
 #include <string>
 #include <thread>  // NOLINT.
 #include <list>
@@ -37,22 +38,21 @@
 
 namespace libntrip {
 
+namespace {
+
 // GPGGA format example.
 constexpr char gpgga_buffer[] =
     "$GPGGA,083552.00,3000.0000000,N,11900.0000000,E,"
     "1,08,1.0,0.000,M,100.000,M,,*57\r\n";
 
+}  // namespace
+
 //
 // Public method.
 //
 
-NtripClient::~NtripClient() {
-  if (thread_is_running_) {
-    Stop();
-  }
-}
-
 bool NtripClient::Run(void) {
+  service_is_running_.store(false);
   int ret = -1;
   char recv_buf[1024] = {0};
   char request_data[1024] = {0};
@@ -107,10 +107,9 @@ bool NtripClient::Run(void) {
     ret = recv(socket_fd, recv_buf, sizeof(recv_buf), 0);
     if ((ret > 0) && !strncmp(recv_buf, "ICY 200 OK\r\n", 12)) {
       if (gga_buffer_.empty()) {
-        ret = send(socket_fd, gpgga_buffer, strlen(gpgga_buffer), 0);
-      } else {
-        ret = send(socket_fd, gga_buffer_.c_str(), gga_buffer_.size(), 0);
+        GetGGAFrameData(latitude_, longitude_, 10.0, &gga_buffer_);
       }
+      ret = send(socket_fd, gga_buffer_.c_str(), gga_buffer_.size(), 0);
       if (ret < 0) {
         printf("Send gpgga data fail\n");
         close(socket_fd);
@@ -143,14 +142,13 @@ bool NtripClient::Run(void) {
   socket_fd_ = socket_fd;
   thread_ = std::thread(&NtripClient::TheradHandler, this);
   thread_.detach();
-  service_is_running_ = true;
   printf("NtripClient service starting ...\n");
+  gga_is_update_.store(false);
   return true;
 }
 
 void NtripClient::Stop(void) {
-  service_is_running_ = false;
-  thread_is_running_ = false;
+  service_is_running_.store(false);
   if (socket_fd_ != -1) {
     close(socket_fd_);
     socket_fd_ = -1;
@@ -162,11 +160,12 @@ void NtripClient::Stop(void) {
 //
 
 void NtripClient::TheradHandler(void) {
+  service_is_running_.store(true);
   int ret;
   char recv_buffer[1024] = {};
-  thread_is_running_ = true;
-  while (thread_is_running_) {
-    memset(recv_buffer, 0x0, sizeof(recv_buffer));
+  auto start_tp = std::chrono::steady_clock::now();
+  int intv_ms = report_interval_ * 1000;
+  while (service_is_running_) {
     ret = recv(socket_fd_, recv_buffer, sizeof(recv_buffer), 0);
     if (ret == 0) {
       printf("Remote socket close!!!\n");
@@ -182,10 +181,18 @@ void NtripClient::TheradHandler(void) {
     } else {
       callback_(recv_buffer, ret);
     }
+    if (std::chrono::duration_cast<std::chrono::milliseconds>(
+            std::chrono::steady_clock::now()-start_tp).count() >= intv_ms) {
+      start_tp = std::chrono::steady_clock::now();
+      if (gga_is_update_ == false) {
+        GetGGAFrameData(latitude_, longitude_, 10.0, &gga_buffer_);
+      }
+      send(socket_fd_, gga_buffer_.c_str(), gga_buffer_.size(), 0);
+      gga_is_update_.store(false);
+    }
   }
   close(socket_fd_);
   socket_fd_ = -1;
-  thread_is_running_ = false;
   service_is_running_ = false;
 }
 

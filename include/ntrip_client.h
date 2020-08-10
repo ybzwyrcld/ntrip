@@ -15,6 +15,7 @@
 #ifndef NTRIPLIB_NTRIP_CLIENT_H_
 #define NTRIPLIB_NTRIP_CLIENT_H_
 
+#include <atomic>
 #include <string>
 #include <thread>  // NOLINT.
 #include <functional>
@@ -36,7 +37,7 @@ class NtripClient {
       user_(user),
       passwd_(passwd),
       mountpoint_(mountpoint) { }
-  ~NtripClient();
+  ~NtripClient() { Stop(); }
 
   void Init(const std::string &ip, const int &port,
             const std::string &user, const std::string &passwd,
@@ -47,11 +48,21 @@ class NtripClient {
     passwd_ = passwd;
     mountpoint_ = mountpoint;
   }
-  // 设置发送的GGA语句.
+  // 更新发送的GGA语句.
   // 根据ntrip账号的要求, 如果距离服务器位置过远, 服务器不会返回差分数据.
   void set_gga_buffer(const std::string &gga_buffer) {
     gga_buffer_ = gga_buffer;
   }
+  // 设置固定位置坐标, 由此自动生成GGA数据.
+  void set_location(double const& latitude, double const& longitude) {
+    latitude_ = latitude;
+    longitude_ = longitude;
+  }
+  // 设置GGA上报时间间隔, 单位秒(s).
+  void set_report_interval(int const& intv) {
+    report_interval_ = intv;
+  }
+
   // 设置接收到数据时的回调函数.
   void OnReceived(const ClientCallback &callback) { callback_ = callback; }
   bool Run(void);
@@ -64,8 +75,11 @@ class NtripClient {
   // Thread handler.
   void TheradHandler(void);
 
-  bool service_is_running_ = false;
-  bool thread_is_running_ = false;
+  std::atomic_bool service_is_running_;
+  std::atomic_bool gga_is_update_;  // 外部更新GGA数据标志.
+  int report_interval_;  // GGA数据上报时间间隔.
+  double latitude_ = 22.570535;  // 固定坐标纬度.
+  double longitude_ = 113.937739;  // 固定坐标经度.
   std::thread thread_;
   std::string server_ip_;
   int server_port_ = -1;

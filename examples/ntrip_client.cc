@@ -41,17 +41,20 @@ int main(void) {
     }
     printf("\n");
   });
-  std::string gga;
-  if (libntrip::GetGGAFrameData(22.57311, 113.94905, 10.0, &gga) == 0) {
-    printf("GGA buffer: %s\n", gga.c_str());
-    ntrip_client.set_gga_buffer(gga);
-  }
+  // std::string gga;
+  // if (libntrip::GetGGAFrameData(22.57311, 113.94905, 10.0, &gga) == 0) {
+  //   printf("GGA buffer: %s\n", gga.c_str());
+  //   ntrip_client.set_gga_buffer(gga);
+  // }
+  ntrip_client.set_location(22.57311, 113.94905);
+  ntrip_client.set_report_interval(10);
   ntrip_client.Run();
   // Exit the program after 10 seconds.
   int cnt = 10;
-  while (cnt--) {
+  do {
     std::this_thread::sleep_for(std::chrono::seconds(1));
-  }
+  } while (cnt--);
+
   ntrip_client.Stop();
   return 0;
 }
