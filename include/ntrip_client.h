@@ -47,6 +47,7 @@ class NtripClient {
     user_ = user;
     passwd_ = passwd;
     mountpoint_ = mountpoint;
+    service_is_running_ = false;
   }
   // 更新发送的GGA语句.
   // 根据ntrip账号的要求, 如果距离服务器位置过远, 服务器不会返回差分数据.

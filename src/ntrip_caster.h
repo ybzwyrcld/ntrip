@@ -45,6 +45,7 @@ class NtripCaster {
     server_port_ = port;
     max_count_ = sock_count;
     time_out_ = time_out;
+    service_is_running_ = false;
   }
   bool Run(void);
   void Stop(void);

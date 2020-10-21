@@ -52,6 +52,7 @@ class NtripServer {
     passwd_ = passwd;
     mountpoint_ = mountpoint;
     ntrip_str_ = ntrip_str;
+    service_is_running_ = false;
   }
 
   bool SendData(const char *data, const int &size) {
