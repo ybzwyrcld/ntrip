@@ -55,13 +55,14 @@ class NtripServer {
     service_is_running_ = false;
   }
 
-  bool SendData(const char *data, const int &size) {
-    return (size == send(socket_fd_, data, size, 0));
+  // Return 0 if success.
+  int SendData(const char *data, const int &size) {
+    return (size == send(socket_fd_, data, size, 0))-1;
   }
-  bool SendData(const std::vector<char> &data) {
+  int SendData(const std::vector<char> &data) {
     return SendData(data.data(), data.size());
   }
-  bool SendData(const std::string &data) {
+  int SendData(const std::string &data) {
     return SendData(data.data(), data.size());
   }
 

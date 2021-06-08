@@ -37,12 +37,6 @@
 
 namespace libntrip {
 
-// RTK format example.
-constexpr uint8_t example_data[] = {
-    0xd3, 0x00, 0x70, 0x8e, 0x43, 0x56, 0x45, 0x00, 0x00,
-    0x55, 0xfb, 0x89, 0xff, 0xff, '\r', '\n'
-};
-
 //
 // Public method.
 //
@@ -163,31 +157,16 @@ void NtripServer::TheradHandler(void) {
   int ret;
   char recv_buffer[1024] = {};
   thread_is_running_ = true;
-  int cnt = 100;
   while (thread_is_running_) {
-    // TODO(mengyuming@hotmail.com) : Now just send test data.
-    if (--cnt == 0) {  // Near once per second.
-      ret = send(socket_fd_, example_data, sizeof(example_data), 0);
-      if (ret > 0) {
-        printf("Send example_data success\n");
-      } else if (ret < 0) {
-        if ((errno == EAGAIN) || (errno == EWOULDBLOCK) || (errno == EINTR)) {
-          continue;
-        } else {
-          printf("Remote socket error!!!\n");
-          break;
-        }
-      } else if (ret == 0) {
-        printf("Remote socket close!!!\n");
-        break;
-      }
-      cnt = 100;
-    }
-    memset(recv_buffer, 0x0, sizeof(recv_buffer));
     ret = recv(socket_fd_, recv_buffer, sizeof(recv_buffer), 0);
     if (ret == 0) {
       printf("Remote socket close!!!\n");
       break;
+    } else if (ret < 0) {
+      if ((errno != EAGAIN) && (errno != EWOULDBLOCK) && (errno != EINTR)) {
+        printf("Remote socket error!!!\n");
+        break;
+      }
     }
     std::this_thread::sleep_for(std::chrono::milliseconds(10));
   }
