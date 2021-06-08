@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "ntrip_caster.h"
+#include "ntrip/ntrip_caster.h"
 
 
 using libntrip::NtripCaster;

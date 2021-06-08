@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "ntrip_caster.h"
+#include "ntrip/ntrip_caster.h"
 
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -34,7 +34,7 @@
 #include <string>
 #include <vector>
 
-#include "ntrip_util.h"
+#include "ntrip/ntrip_util.h"
 
 
 namespace libntrip {

@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "ntrip_client.h"
+#include "ntrip/ntrip_client.h"
 
 #include <unistd.h>
 #include <stdint.h>
@@ -20,7 +20,7 @@
 #include <string>
 #include <vector>
 
-#include "ntrip_util.h"
+#include "ntrip/ntrip_util.h"
 
 
 using libntrip::NtripClient;
