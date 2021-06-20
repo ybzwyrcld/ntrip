@@ -74,8 +74,6 @@ bool NtripClient::Run(void) {
   snprintf(request_data, sizeof(request_data),
            "GET /%s HTTP/1.1\r\n"
            "User-Agent: %s\r\n"
-           "Accept: */*\r\n"
-           "Connection: close\r\n"
            "Authorization: Basic %s\r\n"
            "\r\n",
            mountpoint_.c_str(), kClientAgent, userinfo);
@@ -113,18 +111,22 @@ bool NtripClient::Run(void) {
   int timeout = 3;
   while (timeout--) {
     ret = recv(socket_fd, recv_buf, sizeof(recv_buf), 0);
-    if ((ret > 0) && !strncmp(recv_buf, "ICY 200 OK\r\n", 12)) {
-      if (gga_buffer_.empty()) {
-        GetGGAFrameData(latitude_, longitude_, 10.0, &gga_buffer_);
+    if (ret > 0) {
+      std::string result(recv_buf, ret);
+      if ((result.find("HTTP/1.1 200 OK") != std::string::npos) ||
+          (result.find("ICY 200 OK") != std::string::npos)) {
+        if (gga_buffer_.empty()) {
+          GetGGAFrameData(latitude_, longitude_, 10.0, &gga_buffer_);
+        }
+        ret = send(socket_fd, gga_buffer_.c_str(), gga_buffer_.size(), 0);
+        if (ret < 0) {
+          printf("Send gpgga data fail\n");
+          close(socket_fd);
+          return false;
+        }
+        // printf("Send gpgga data ok\n");
+        break;
       }
-      ret = send(socket_fd, gga_buffer_.c_str(), gga_buffer_.size(), 0);
-      if (ret < 0) {
-        printf("Send gpgga data fail\n");
-        close(socket_fd);
-        return false;
-      }
-      // printf("Send gpgga data ok\n");
-      break;
     } else if (ret == 0) {
       printf("Remote socket close!!!\n");
       close(socket_fd);
