@@ -182,8 +182,7 @@ void NtripClient::TheradHandler(void) {
       break;
     } else if (ret < 0) {
       if ((errno == EAGAIN) || (errno == EWOULDBLOCK) || (errno == EINTR)) {
-        std::this_thread::sleep_for(std::chrono::microseconds(10));
-        continue;
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
       } else {
         printf("Remote socket error!!!\n");
         break;
