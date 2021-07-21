@@ -24,3 +24,12 @@ target_link_libraries(ntrip_server
   ntrip
   pthread
 )
+
+add_executable(ntrip_client_to_ntrip_server
+  ntrip_client_to_ntrip_server.cc
+)
+add_dependencies(ntrip_client_to_ntrip_server ntrip)
+target_link_libraries(ntrip_client_to_ntrip_server
+  ntrip
+  pthread
+)
