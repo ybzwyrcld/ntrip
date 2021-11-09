@@ -60,7 +60,11 @@ constexpr char gpgga_buffer[] =
 //
 
 bool NtripClient::Run(void) {
-  service_is_running_.store(false);
+  if (service_is_running_.load()) return true;
+  if (socket_fd_ > 0) {
+    close(socket_fd_);
+    socket_fd_ = -1;
+  }
   int ret = -1;
   char recv_buf[1024] = {0};
   char request_data[1024] = {0};
@@ -151,18 +155,16 @@ bool NtripClient::Run(void) {
   setsockopt(socket_fd, SOL_TCP, TCP_KEEPCNT, &keepcount, sizeof(keepcount));
   socket_fd_ = socket_fd;
   thread_ = std::thread(&NtripClient::TheradHandler, this);
-  thread_.detach();
-  printf("NtripClient service starting ...\n");
-  gga_is_update_.store(false);
   return true;
 }
 
 void NtripClient::Stop(void) {
   service_is_running_.store(false);
-  if (socket_fd_ != -1) {
+  if (socket_fd_ > 0) {
     close(socket_fd_);
     socket_fd_ = -1;
   }
+  if (thread_.joinable()) thread_.join();
 }
 
 //
@@ -175,6 +177,7 @@ void NtripClient::TheradHandler(void) {
   char recv_buffer[1024] = {};
   auto start_tp = std::chrono::steady_clock::now();
   int intv_ms = report_interval_ * 1000;
+  printf("NtripClient running...\n");
   while (service_is_running_) {
     ret = recv(socket_fd_, recv_buffer, sizeof(recv_buffer), 0);
     if (ret == 0) {
@@ -193,16 +196,14 @@ void NtripClient::TheradHandler(void) {
     if (std::chrono::duration_cast<std::chrono::milliseconds>(
             std::chrono::steady_clock::now()-start_tp).count() >= intv_ms) {
       start_tp = std::chrono::steady_clock::now();
-      if (gga_is_update_ == false) {
+      if (!gga_is_update_.load()) {
         GetGGAFrameData(latitude_, longitude_, 10.0, &gga_buffer_);
       }
       send(socket_fd_, gga_buffer_.c_str(), gga_buffer_.size(), 0);
-      gga_is_update_.store(false);
     }
   }
-  close(socket_fd_);
-  socket_fd_ = -1;
-  service_is_running_ = false;
+  printf("NtripClient done.\n");
+  service_is_running_.store(false);
 }
 
 }  // namespace libntrip

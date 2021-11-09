@@ -50,12 +50,15 @@ namespace libntrip {
 //
 
 NtripServer::~NtripServer() {
-  if (thread_is_running_) {
-    Stop();
-  }
+  Stop();
 }
 
 bool NtripServer::Run(void) {
+  if (service_is_running_.load()) return true;
+  if (socket_fd_ > 0) {
+    close(socket_fd_);
+    socket_fd_ = -1;
+  }
   int ret = -1;
   char request_buffer[1024] = {0};
   char userinfo_raw[48] = {0};
@@ -139,22 +142,19 @@ bool NtripServer::Run(void) {
   setsockopt(socket_fd, SOL_TCP, TCP_KEEPCNT, &keepcount, sizeof(keepcount));
   socket_fd_ = socket_fd;
   thread_ = std::thread(&NtripServer::TheradHandler, this);
-  thread_.detach();
-  service_is_running_ = true;
-  printf("NtripServer starting ...\n");
   return true;
 }
 
 void NtripServer::Stop(void) {
-  thread_is_running_ = false;
-  service_is_running_ = false;
-  if (socket_fd_ != -1) {
+  service_is_running_.store(false);
+  if (socket_fd_ > 0) {
     close(socket_fd_);
     socket_fd_ = -1;
   }
   if (!data_list_.empty()) {
     data_list_.clear();
   }
+  if (thread_.joinable()) thread_.join();
 }
 
 //
@@ -162,10 +162,11 @@ void NtripServer::Stop(void) {
 //
 
 void NtripServer::TheradHandler(void) {
+  service_is_running_.store(true);
   int ret;
   char recv_buffer[1024] = {};
-  thread_is_running_ = true;
-  while (thread_is_running_) {
+  printf("NtripServer running...\n");
+  while (service_is_running_.load()) {
     ret = recv(socket_fd_, recv_buffer, sizeof(recv_buffer), 0);
     if (ret == 0) {
       printf("Remote socket close!!!\n");
@@ -178,10 +179,8 @@ void NtripServer::TheradHandler(void) {
     }
     std::this_thread::sleep_for(std::chrono::milliseconds(10));
   }
-  close(socket_fd_);
-  socket_fd_ = -1;
-  thread_is_running_ = false;
-  service_is_running_ = false;
+  printf("NtripServer done.\n");
+  service_is_running_.store(false);
 }
 
 }  // namespace libntrip

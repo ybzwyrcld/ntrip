@@ -31,6 +31,8 @@
 #include <thread>  // NOLINT.
 #include <list>
 #include <vector>
+#include <atomic>
+
 
 namespace libntrip {
 
@@ -38,17 +40,15 @@ class NtripServer {
  public:
   NtripServer() = default;
   NtripServer(const NtripServer &) = delete;
+  NtripServer(NtripServer&&) = delete;
   NtripServer& operator=(const NtripServer &) = delete;
+  NtripServer& operator=(NtripServer&&) = delete;
   NtripServer(const std::string &ip, const int &port,
          const std::string &user, const std::string &passwd,
-         const std::string &mountpoint,
-         const std::string &ntrip_str) :
-      server_ip_(ip),
-      server_port_(port),
-      user_(user),
-      passwd_(passwd),
-      mountpoint_(mountpoint),
-      ntrip_str_(ntrip_str) { }
+         const std::string &mountpoint, const std::string &ntrip_str) :
+      server_ip_(ip), server_port_(port),
+      user_(user), passwd_(passwd),
+      mountpoint_(mountpoint), ntrip_str_(ntrip_str) { }
   ~NtripServer();
 
   void Init(const std::string &ip, const int &port,
@@ -60,7 +60,6 @@ class NtripServer {
     passwd_ = passwd;
     mountpoint_ = mountpoint;
     ntrip_str_ = ntrip_str;
-    service_is_running_ = false;
   }
 
   // Return 0 if success.
@@ -82,15 +81,14 @@ class NtripServer {
   bool Run(void);
   void Stop(void);
   bool service_is_running(void) const {
-    return service_is_running_;
+    return service_is_running_.load();
   }
 
  private:
   // Thread handler.
   void TheradHandler(void);
 
-  bool thread_is_running_ = false;
-  bool service_is_running_ = false;
+  std::atomic_bool service_is_running_ = {false};
   std::thread thread_;
   std::string server_ip_;
   int server_port_ = -1;
