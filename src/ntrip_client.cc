@@ -40,6 +40,7 @@
 #include <thread>  // NOLINT.
 #include <list>
 #include <vector>
+#include <memory>
 
 #include "ntrip/ntrip_util.h"
 
@@ -53,6 +54,8 @@ constexpr char gpgga_buffer[] =
     "$GPGGA,083552.00,3000.0000000,N,11900.0000000,E,"
     "1,08,1.0,0.000,M,100.000,M,,*57\r\n";
 
+constexpr int kBufferSize = 8192;
+
 }  // namespace
 
 //
@@ -61,6 +64,7 @@ constexpr char gpgga_buffer[] =
 
 bool NtripClient::Run(void) {
   if (service_is_running_.load()) return true;
+  Stop();
   if (socket_fd_ > 0) {
     close(socket_fd_);
     socket_fd_ = -1;
@@ -83,21 +87,23 @@ bool NtripClient::Run(void) {
            mountpoint_.c_str(), kClientAgent, userinfo);
 
   struct sockaddr_in server_addr;
-  memset(&server_addr, 0, sizeof(struct sockaddr_in));
+  memset(&server_addr, 0, sizeof(server_addr));
   server_addr.sin_family = AF_INET;
   server_addr.sin_port = htons(server_port_);
   server_addr.sin_addr.s_addr = inet_addr(server_ip_.c_str());
 
   int socket_fd = socket(AF_INET, SOCK_STREAM, 0);
   if (socket_fd == -1) {
-    printf("Create socket fail\n");
+    printf("Create socket failed, errno = -%d\n", errno);
     return false;
   }
 
   // Connect to caster.
   if (connect(socket_fd, reinterpret_cast<struct sockaddr *>(&server_addr),
-              sizeof(struct sockaddr_in)) < 0) {
-    printf("Connect caster failed!!!\n");
+      sizeof(server_addr)) < 0) {
+    printf("Connect to NtripCaster[%s:%d] failed, errno = -%d\n",
+        server_ip_.c_str(), server_port_, errno);
+    close(socket_fd);
     return false;
   }
 
@@ -140,6 +146,10 @@ bool NtripClient::Run(void) {
   }
 
   if (timeout <= 0) {
+    printf("NtripCaster[%s:%d %s %s %s] access failed!!!\n",
+        server_ip_.c_str(), server_port_,
+        user_.c_str(), passwd_.c_str(), mountpoint_.c_str());
+    close(socket_fd);
     return false;
   }
   // TCP socket keepalive.
@@ -147,11 +157,11 @@ bool NtripClient::Run(void) {
   int keepidle = 30;  // Time out for starting detection.
   int keepinterval = 5;  // Time interval for sending packets during detection.
   int keepcount = 3;  // Max times for sending packets during detection.
-  setsockopt(socket_fd, SOL_SOCKET, SO_KEEPALIVE, &keepalive,
-             sizeof(keepalive));
+  setsockopt(socket_fd, SOL_SOCKET, SO_KEEPALIVE,
+      &keepalive, sizeof(keepalive));
   setsockopt(socket_fd, SOL_TCP, TCP_KEEPIDLE, &keepidle, sizeof(keepidle));
-  setsockopt(socket_fd, SOL_TCP, TCP_KEEPINTVL, &keepinterval,
-             sizeof(keepinterval));
+  setsockopt(socket_fd, SOL_TCP, TCP_KEEPINTVL,
+      &keepinterval, sizeof(keepinterval));
   setsockopt(socket_fd, SOL_TCP, TCP_KEEPCNT, &keepcount, sizeof(keepcount));
   socket_fd_ = socket_fd;
   thread_ = std::thread(&NtripClient::TheradHandler, this);
@@ -174,12 +184,14 @@ void NtripClient::Stop(void) {
 void NtripClient::TheradHandler(void) {
   service_is_running_.store(true);
   int ret;
-  char recv_buffer[1024] = {};
+  std::unique_ptr<char[]> buffer(
+      new char[kBufferSize], std::default_delete<char[]>());
   auto start_tp = std::chrono::steady_clock::now();
   int intv_ms = report_interval_ * 1000;
-  printf("NtripClient running...\n");
+  printf("NtripClient service running...\n");
+  int len;
   while (service_is_running_) {
-    ret = recv(socket_fd_, recv_buffer, sizeof(recv_buffer), 0);
+    ret = recv(socket_fd_, buffer.get(), kBufferSize, 0);
     if (ret == 0) {
       printf("Remote socket close!!!\n");
       break;
@@ -191,7 +203,7 @@ void NtripClient::TheradHandler(void) {
         break;
       }
     } else {
-      callback_(recv_buffer, ret);
+      callback_(buffer.get(), ret);
     }
     if (std::chrono::duration_cast<std::chrono::milliseconds>(
             std::chrono::steady_clock::now()-start_tp).count() >= intv_ms) {
@@ -202,7 +214,7 @@ void NtripClient::TheradHandler(void) {
       send(socket_fd_, gga_buffer_.c_str(), gga_buffer_.size(), 0);
     }
   }
-  printf("NtripClient done.\n");
+  printf("NtripClient service done.\n");
   service_is_running_.store(false);
 }
 
