@@ -30,7 +30,7 @@
 
 namespace libntrip {
 
-using ClientCallback = std::function<void(const char *, const int &)>;
+using ClientCallback = std::function<void (char const* _buffer, int _size)>;
 
 class NtripClient {
  public:
@@ -97,7 +97,7 @@ class NtripClient {
   std::string mountpoint_;
   std::string gga_buffer_;
   int socket_fd_ = -1;
-  ClientCallback callback_;
+  ClientCallback callback_ = [] (char const*, int) -> void {};
 };
 
 }  // namespace libntrip
