@@ -165,6 +165,8 @@ bool NtripClient::Run(void) {
   setsockopt(socket_fd, SOL_TCP, TCP_KEEPCNT, &keepcount, sizeof(keepcount));
   socket_fd_ = socket_fd;
   thread_ = std::thread(&NtripClient::TheradHandler, this);
+  // Thread may not start immediately.
+  service_is_running_.store(true);
   return true;
 }
 
