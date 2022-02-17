@@ -54,7 +54,7 @@ constexpr char gpgga_buffer[] =
     "$GPGGA,083552.00,3000.0000000,N,11900.0000000,E,"
     "1,08,1.0,0.000,M,100.000,M,,*57\r\n";
 
-constexpr int kBufferSize = 8192;
+constexpr int kBufferSize = 4096;
 
 }  // namespace
 
@@ -69,36 +69,17 @@ bool NtripClient::Run(void) {
     close(socket_fd_);
     socket_fd_ = -1;
   }
-  int ret = -1;
-  char recv_buf[1024] = {0};
-  char request_data[1024] = {0};
-  char userinfo_raw[48] = {0};
-  char userinfo[64] = {0};
-  // Generate base64 encoding of username and password.
-  snprintf(userinfo_raw, sizeof(userinfo_raw) , "%s:%s",
-           user_.c_str(), passwd_.c_str());
-  Base64Encode(userinfo_raw, userinfo);
-  // Generate request data format of ntrip.
-  snprintf(request_data, sizeof(request_data),
-           "GET /%s HTTP/1.1\r\n"
-           "User-Agent: %s\r\n"
-           "Authorization: Basic %s\r\n"
-           "\r\n",
-           mountpoint_.c_str(), kClientAgent, userinfo);
-
+  // Establish a connection with NtripCaster.
   struct sockaddr_in server_addr;
   memset(&server_addr, 0, sizeof(server_addr));
   server_addr.sin_family = AF_INET;
   server_addr.sin_port = htons(server_port_);
   server_addr.sin_addr.s_addr = inet_addr(server_ip_.c_str());
-
   int socket_fd = socket(AF_INET, SOCK_STREAM, 0);
   if (socket_fd == -1) {
     printf("Create socket failed, errno = -%d\n", errno);
     return false;
   }
-
-  // Connect to caster.
   if (connect(socket_fd, reinterpret_cast<struct sockaddr *>(&server_addr),
       sizeof(server_addr)) < 0) {
     printf("Connect to NtripCaster[%s:%d] failed, errno = -%d\n",
@@ -106,23 +87,37 @@ bool NtripClient::Run(void) {
     close(socket_fd);
     return false;
   }
-
+  // Set non-blocking.
   int flags = fcntl(socket_fd, F_GETFL);
   fcntl(socket_fd, F_SETFL, flags | O_NONBLOCK);
-
-  // Send request data.
-  if (send(socket_fd, request_data, strlen(request_data), 0) < 0) {
+  // Ntrip connection authentication.
+  int ret = -1;
+  char userinfo[128] = {0};
+  char userinfo_base64[256] = {0};
+  std::unique_ptr<char[]> buffer(
+      new char[kBufferSize], std::default_delete<char[]>());
+  // Generate base64 encoding of username and password.
+  ret = snprintf(userinfo, sizeof(userinfo), "%s:%s",
+      user_.c_str(), passwd_.c_str());
+  Base64Encode(userinfo, userinfo_base64);
+  // Generate request data format of ntrip.
+  ret = snprintf(buffer.get(), kBufferSize-1,
+      "GET /%s HTTP/1.1\r\n"
+      "User-Agent: %s\r\n"
+      "Authorization: Basic %s\r\n"
+      "\r\n",
+      mountpoint_.c_str(), kClientAgent, userinfo_base64);
+  if (send(socket_fd, buffer.get(), ret, 0) < 0) {
     printf("Send request failed!!!\n");
     close(socket_fd);
     return false;
   }
-
   // Waitting for request to connect caster success.
   int timeout = 3;
   while (timeout--) {
-    ret = recv(socket_fd, recv_buf, sizeof(recv_buf), 0);
+    ret = recv(socket_fd, buffer.get(), kBufferSize, 0);
     if (ret > 0) {
-      std::string result(recv_buf, ret);
+      std::string result(buffer.get(), ret);
       if ((result.find("HTTP/1.1 200 OK") != std::string::npos) ||
           (result.find("ICY 200 OK") != std::string::npos)) {
         if (gga_buffer_.empty()) {
@@ -144,7 +139,6 @@ bool NtripClient::Run(void) {
     }
     sleep(1);
   }
-
   if (timeout <= 0) {
     printf("NtripCaster[%s:%d %s %s %s] access failed!!!\n",
         server_ip_.c_str(), server_port_,
@@ -164,9 +158,7 @@ bool NtripClient::Run(void) {
       &keepinterval, sizeof(keepinterval));
   setsockopt(socket_fd, SOL_TCP, TCP_KEEPCNT, &keepcount, sizeof(keepcount));
   socket_fd_ = socket_fd;
-  thread_ = std::thread(&NtripClient::TheradHandler, this);
-  // Thread may not start immediately.
-  service_is_running_.store(true);
+  thread_.reset(&NtripClient::ThreadHandler, this);
   return true;
 }
 
@@ -176,45 +168,46 @@ void NtripClient::Stop(void) {
     close(socket_fd_);
     socket_fd_ = -1;
   }
-  if (thread_.joinable()) thread_.join();
+  thread_.join();
 }
 
 //
 // Private method.
 //
 
-void NtripClient::TheradHandler(void) {
+void NtripClient::ThreadHandler(void) {
   service_is_running_.store(true);
   int ret;
   std::unique_ptr<char[]> buffer(
       new char[kBufferSize], std::default_delete<char[]>());
-  auto start_tp = std::chrono::steady_clock::now();
+  auto tp_beg = std::chrono::steady_clock::now();
+  auto tp_end = tp_beg;
   int intv_ms = report_interval_ * 1000;
   printf("NtripClient service running...\n");
-  int len;
-  while (service_is_running_) {
+  while (service_is_running_.load()) {
     ret = recv(socket_fd_, buffer.get(), kBufferSize, 0);
     if (ret == 0) {
       printf("Remote socket close!!!\n");
       break;
     } else if (ret < 0) {
-      if ((errno == EAGAIN) || (errno == EWOULDBLOCK) || (errno == EINTR)) {
-        std::this_thread::sleep_for(std::chrono::milliseconds(10));
-      } else {
+      if ((errno != EAGAIN) && (errno != EWOULDBLOCK) && (errno != EINTR)) {
         printf("Remote socket error!!!\n");
         break;
       }
     } else {
       callback_(buffer.get(), ret);
+      if (ret == kBufferSize) continue;
     }
+    tp_end = std::chrono::steady_clock::now();
     if (std::chrono::duration_cast<std::chrono::milliseconds>(
-            std::chrono::steady_clock::now()-start_tp).count() >= intv_ms) {
-      start_tp = std::chrono::steady_clock::now();
+        tp_end-tp_beg).count() >= intv_ms) {
+      tp_beg = std::chrono::steady_clock::now();
       if (!gga_is_update_.load()) {
         GetGGAFrameData(latitude_, longitude_, 10.0, &gga_buffer_);
       }
       send(socket_fd_, gga_buffer_.c_str(), gga_buffer_.size(), 0);
     }
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
   }
   printf("NtripClient service done.\n");
   service_is_running_.store(false);

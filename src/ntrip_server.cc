@@ -47,7 +47,7 @@ namespace libntrip {
 
 namespace {
 
-constexpr int kBufferSize = 1024;
+constexpr int kBufferSize = 4096;
 
 }  // namespace
 
@@ -62,16 +62,39 @@ NtripServer::~NtripServer() {
 bool NtripServer::Run(void) {
   if (service_is_running_.load()) return true;
   Stop();
+  // Establish a connection with NtripCaster.
+  struct sockaddr_in server_addr;
+  memset(&server_addr, 0, sizeof(server_addr));
+  server_addr.sin_family = AF_INET;
+  server_addr.sin_port = htons(server_port_);
+  server_addr.sin_addr.s_addr = inet_addr(server_ip_.c_str());
+  int socket_fd = socket(AF_INET, SOCK_STREAM, 0);
+  if (socket_fd == -1) {
+    printf("Create socket failed, errno = -%d\n", errno);
+    return false;
+  }
+  if (connect(socket_fd, reinterpret_cast<struct sockaddr *>(&server_addr),
+      sizeof(server_addr)) < 0) {
+    printf("Connect to NtripCaster[%s:%d] failed, errno = -%d\n",
+        server_ip_.c_str(), server_port_, errno);
+    close(socket_fd);
+    return false;
+  }
+  // Set non-blocking.
+  int flags = fcntl(socket_fd, F_GETFL);
+  fcntl(socket_fd, F_SETFL, flags | O_NONBLOCK);
+  // Ntrip connection authentication.
   int ret = -1;
-  char request_buffer[kBufferSize] = {0};
-  char userinfo_raw[48] = {0};
-  char userinfo[64] = {0};
+  char userinfo[128] = {0};
+  char userinfo_base64[256] = {0};
+  std::unique_ptr<char[]> buffer(
+      new char[kBufferSize], std::default_delete<char[]>());
   // Generate base64 encoding of username and password.
-  snprintf(userinfo_raw, sizeof(userinfo_raw) , "%s:%s",
+  snprintf(userinfo, sizeof(userinfo) , "%s:%s",
       user_.c_str(), passwd_.c_str());
-  Base64Encode(userinfo_raw, userinfo);
+  Base64Encode(userinfo, userinfo_base64);
   // Generate request data format of ntrip.
-  snprintf(request_buffer, sizeof(request_buffer),
+  ret = snprintf(buffer.get(), kBufferSize-1,
       "POST /%s HTTP/1.1\r\n"
       "Host: %s:%d\r\n"
       "Ntrip-Version: Ntrip/2.0\r\n"
@@ -81,45 +104,18 @@ bool NtripServer::Run(void) {
       "Connection: close\r\n"
       "Transfer-Encoding: chunked\r\n",
       mountpoint_.c_str(), server_ip_.c_str(), server_port_,
-      kServerAgent, userinfo, ntrip_str_.c_str());
-
-  struct sockaddr_in server_addr;
-  memset(&server_addr, 0, sizeof(server_addr));
-  server_addr.sin_family = AF_INET;
-  server_addr.sin_port = htons(server_port_);
-  server_addr.sin_addr.s_addr = inet_addr(server_ip_.c_str());
-
-  int socket_fd = socket(AF_INET, SOCK_STREAM, 0);
-  if (socket_fd == -1) {
-    printf("Create socket failed, errno = -%d\n", errno);
-    return false;
-  }
-
-  // Connect to caster.
-  if (connect(socket_fd, reinterpret_cast<struct sockaddr *>(&server_addr),
-      sizeof(server_addr)) < 0) {
-    printf("Connect to NtripCaster[%s:%d] failed, errno = -%d\n",
-        server_ip_.c_str(), server_port_, errno);
-    close(socket_fd);
-    return false;
-  }
-
-  int flags = fcntl(socket_fd, F_GETFL);
-  fcntl(socket_fd, F_SETFL, flags | O_NONBLOCK);
-
-  // Send request data.
-  if (send(socket_fd, request_buffer, strlen(request_buffer), 0) < 0) {
+      kServerAgent, userinfo_base64, ntrip_str_.c_str());
+  if (send(socket_fd, buffer.get(), ret, 0) < 0) {
     printf("Send authentication request failed!!!\n");
     close(socket_fd);
     return false;
   }
-
   // Waitting for request to connect caster success.
   int timeout = 3;
   while (timeout--) {
-    ret = recv(socket_fd, request_buffer, kBufferSize, 0);
+    ret = recv(socket_fd, buffer.get(), kBufferSize, 0);
     if (ret > 0) {
-      std::string result(request_buffer, ret);
+      std::string result(buffer.get(), ret);
       if ((result.find("HTTP/1.1 200 OK") != std::string::npos) ||
           (result.find("ICY 200 OK") != std::string::npos)) {
         // printf("Connect to caster success\n");
@@ -132,7 +128,6 @@ bool NtripServer::Run(void) {
     }
     sleep(1);
   }
-
   if (timeout <= 0) {
     printf("NtripCaster[%s:%d %s %s %s] access failed!!!\n",
         server_ip_.c_str(), server_port_,
@@ -152,9 +147,7 @@ bool NtripServer::Run(void) {
       &keepinterval, sizeof(keepinterval));
   setsockopt(socket_fd, SOL_TCP, TCP_KEEPCNT, &keepcount, sizeof(keepcount));
   socket_fd_ = socket_fd;
-  thread_ = std::thread(&NtripServer::TheradHandler, this);
-  // Thread may not start immediately.
-  service_is_running_.store(true);
+  thread_.reset(&NtripServer::ThreadHandler, this);
   return true;
 }
 
@@ -167,20 +160,21 @@ void NtripServer::Stop(void) {
   if (!data_list_.empty()) {
     data_list_.clear();
   }
-  if (thread_.joinable()) thread_.join();
+  thread_.join();
 }
 
 //
 // Private method.
 //
 
-void NtripServer::TheradHandler(void) {
+void NtripServer::ThreadHandler(void) {
   service_is_running_.store(true);
   int ret;
-  char recv_buffer[kBufferSize] = {};
+  std::unique_ptr<char[]> buffer(
+      new char[kBufferSize], std::default_delete<char[]>());
   printf("NtripServer service running...\n");
   while (service_is_running_.load()) {
-    ret = recv(socket_fd_, recv_buffer, kBufferSize, 0);
+    ret = recv(socket_fd_, buffer.get(), kBufferSize, 0);
     if (ret == 0) {
       printf("Remote socket closed!!!\n");
       break;
@@ -190,7 +184,7 @@ void NtripServer::TheradHandler(void) {
         break;
       }
     }
-    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
   }
   printf("NtripServer service done.\n");
   service_is_running_.store(false);

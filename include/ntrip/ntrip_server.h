@@ -33,27 +33,29 @@
 #include <vector>
 #include <atomic>
 
+#include "../thread_raii.h"
+
 
 namespace libntrip {
 
 class NtripServer {
  public:
   NtripServer() = default;
-  NtripServer(const NtripServer &) = delete;
+  NtripServer(NtripServer const&) = delete;
   NtripServer(NtripServer&&) = delete;
-  NtripServer& operator=(const NtripServer &) = delete;
+  NtripServer& operator=(NtripServer const&) = delete;
   NtripServer& operator=(NtripServer&&) = delete;
-  NtripServer(const std::string &ip, const int &port,
-         const std::string &user, const std::string &passwd,
-         const std::string &mountpoint, const std::string &ntrip_str) :
-      server_ip_(ip), server_port_(port),
-      user_(user), passwd_(passwd),
-      mountpoint_(mountpoint), ntrip_str_(ntrip_str) { }
+  NtripServer(std::string const& ip, int port,
+      std::string const& user, std::string const& passwd,
+      std::string const& mountpoint, std::string const& ntrip_str) :
+          server_ip_(ip), server_port_(port),
+          user_(user), passwd_(passwd),
+          mountpoint_(mountpoint), ntrip_str_(ntrip_str) { }
   ~NtripServer();
 
-  void Init(const std::string &ip, const int &port,
-            const std::string &user, const std::string &passwd,
-            const std::string &mountpoint, const std::string &ntrip_str) {
+  void Init(std::string const& ip, int port,
+      std::string const& user, std::string const& passwd,
+      std::string const& mountpoint, std::string const& ntrip_str) {
     server_ip_ = ip;
     server_port_ = port;
     user_ = user;
@@ -63,20 +65,20 @@ class NtripServer {
   }
 
   // Return 0 if success.
-  int SendData(const char *data, const int &size) {
+  int SendData(const char *data, int size) {
     return (size == send(socket_fd_, data, size, 0))-1;
   }
-  int SendData(const std::vector<char> &data) {
+  int SendData(std::vector<char> const& data) {
     return SendData(data.data(), data.size());
   }
-  int SendData(const std::string &data) {
+  int SendData(std::string const& data) {
     return SendData(data.data(), data.size());
   }
 
   // TODO(mengyuming@hotmail.com) : Not implemented.
-  void PushData(const char *data, const int &size);
-  void PushData(const std::vector<char> &data);
-  void PushData(const std::string &data);
+  void PushData(char const* data, int size);
+  void PushData(std::vector<char> const& data);
+  void PushData(std::string const& data);
 
   bool Run(void);
   void Stop(void);
@@ -86,10 +88,9 @@ class NtripServer {
 
  private:
   // Thread handler.
-  void TheradHandler(void);
+  void ThreadHandler(void);
 
   std::atomic_bool service_is_running_ = {false};
-  std::thread thread_;
   std::string server_ip_;
   int server_port_ = -1;
   std::string user_;
@@ -97,6 +98,7 @@ class NtripServer {
   std::string mountpoint_;
   std::string ntrip_str_;
   int socket_fd_ = -1;
+  Thread thread_;
   std::list<std::vector<char>> data_list_;
 };
 

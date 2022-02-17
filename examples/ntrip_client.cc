@@ -42,7 +42,7 @@ int main(void) {
 
   NtripClient ntrip_client;
   ntrip_client.Init(ip, port, user, passwd, mountpoint);
-  ntrip_client.OnReceived([](const char *buffer, const int &size) {
+  ntrip_client.OnReceived([] (const char *buffer, int size) {
     printf("Recv[%d]: ", size);
     for (int i = 0; i < size; ++i) {
       printf("%02X ", static_cast<uint8_t>(buffer[i]));
@@ -57,11 +57,10 @@ int main(void) {
   ntrip_client.set_location(22.57311, 113.94905);
   ntrip_client.set_report_interval(10);
   ntrip_client.Run();
-  // Exit the program after 10 seconds.
-  int cnt = 10;
-  do {
+  std::this_thread::sleep_for(std::chrono::seconds(1));  // Maybe take longer?
+  while (ntrip_client.service_is_running()) {
     std::this_thread::sleep_for(std::chrono::seconds(1));
-  } while (cnt--);
+  }
 
   ntrip_client.Stop();
   return 0;

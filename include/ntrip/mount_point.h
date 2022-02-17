@@ -25,6 +25,7 @@
 
 #include <list>
 
+namespace libntrip {
 
 struct MountPoint {
   int server_fd;
@@ -33,5 +34,7 @@ struct MountPoint {
   char mount_point_name[16];
   std::list<int> client_socket_list;
 };
+
+}  // namespace libntrip
 
 #endif  // NTRIPLIB_MOUNT_POINT_H_

@@ -28,6 +28,9 @@
 #include <thread>  // NOLINT.
 #include <functional>
 
+#include "../thread_raii.h"
+
+
 namespace libntrip {
 
 using ClientCallback = std::function<void (char const* _buffer, int _size)>;
@@ -35,21 +38,21 @@ using ClientCallback = std::function<void (char const* _buffer, int _size)>;
 class NtripClient {
  public:
   NtripClient() = default;
-  NtripClient(const NtripClient &) = delete;
+  NtripClient(NtripClient const&) = delete;
   NtripClient(NtripClient&&) = delete;
-  NtripClient& operator=(const NtripClient &) = delete;
+  NtripClient& operator=(NtripClient const&) = delete;
   NtripClient& operator=(NtripClient&&) = delete;
-  NtripClient(const std::string &ip, const int &port,
-              const std::string &user, const std::string &passwd,
-              const std::string &mountpoint) :
-      server_ip_(ip), server_port_(port),
-      user_(user), passwd_(passwd),
-      mountpoint_(mountpoint) { }
+  NtripClient(std::string const& ip, int port,
+      std::string const& user, std::string const& passwd,
+      std::string const& mountpoint) :
+        server_ip_(ip), server_port_(port),
+        user_(user), passwd_(passwd),
+        mountpoint_(mountpoint) { }
   ~NtripClient() { Stop(); }
 
-  void Init(const std::string &ip, const int &port,
-            const std::string &user, const std::string &passwd,
-            const std::string &mountpoint) {
+  void Init(std::string const& ip, int port,
+      std::string const& user, std::string const& passwd,
+      std::string const& mountpoint) {
     server_ip_ = ip;
     server_port_ = port;
     user_ = user;
@@ -58,17 +61,17 @@ class NtripClient {
   }
   // 更新发送的GGA语句.
   // 根据ntrip账号的要求, 如果距离服务器位置过远, 服务器不会返回差分数据.
-  void set_gga_buffer(const std::string &gga_buffer) {
+  void set_gga_buffer(std::string const& gga_buffer) {
     gga_buffer_ = gga_buffer;
     gga_is_update_.store(true);
   }
   // 设置固定位置坐标, 由此自动生成GGA数据.
-  void set_location(double const& latitude, double const& longitude) {
+  void set_location(double latitude, double longitude) {
     latitude_ = latitude;
     longitude_ = longitude;
   }
   // 设置GGA上报时间间隔, 单位秒(s).
-  void set_report_interval(int const& intv) {
+  void set_report_interval(int intv) {
     report_interval_ = intv;
   }
 
@@ -82,14 +85,13 @@ class NtripClient {
 
  private:
   // Thread handler.
-  void TheradHandler(void);
+  void ThreadHandler(void);
 
   std::atomic_bool service_is_running_ = {false};
   std::atomic_bool gga_is_update_ = {false};  // 外部更新GGA数据标志.
   int report_interval_;  // GGA数据上报时间间隔.
   double latitude_ = 22.570535;  // 固定坐标纬度.
   double longitude_ = 113.937739;  // 固定坐标经度.
-  std::thread thread_;
   std::string server_ip_;
   int server_port_ = -1;
   std::string user_;
@@ -97,6 +99,7 @@ class NtripClient {
   std::string mountpoint_;
   std::string gga_buffer_;
   int socket_fd_ = -1;
+  Thread thread_;
   ClientCallback callback_ = [] (char const*, int) -> void {};
 };
 

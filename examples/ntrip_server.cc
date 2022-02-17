@@ -53,23 +53,22 @@ int main(void) {
   int port = 8090;
   std::string user = "test01";
   std::string passwd  = "123456";
-  // Mount point must be consistent with 'ntrip_str',
-  // 'STR;{mountpoint};{mountpoint};'.
+  // Mount point must be consistent with 'ntrip_str':
+  //   'STR;{mountpoint};{mountpoint};...'.
   std::string mountpoint  = "RTCM32";
   std::string ntrip_str = "STR;RTCM32;RTCM32;RTCM 3.2;"
-                          "1004(1),1005/1007(5),PBS(10);2;GPS;SGNET;CHN;"
-                          "31;121;1;1;SGCAN;None;B;N;0;;";
-
+      "1004(1),1005/1007(5),PBS(10);2;GPS;SGNET;CHN;"
+      "31;121;1;1;SGCAN;None;B;N;0;;";
   NtripServer ntrip_server;
   ntrip_server.Init(ip, port, user, passwd, mountpoint, ntrip_str);
-  if (ntrip_server.Run()) {
-     while (ntrip_server.service_is_running()) {
-      if (ntrip_server.SendData((char*)kExmapleData, kExmapleDataLength) != 0) {
-        break;
-      }
-      printf("Send example data success!!!\n");
-      std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+  ntrip_server.Run();
+  std::this_thread::sleep_for(std::chrono::seconds(1));  // Maybe take longer?
+  while (ntrip_server.service_is_running()) {
+    if (ntrip_server.SendData((char*)kExmapleData, kExmapleDataLength) != 0) {
+      break;
     }
+    printf("Send example data success!!!\n");
+    std::this_thread::sleep_for(std::chrono::milliseconds(1000));
   }
   ntrip_server.Stop();
   return 0;

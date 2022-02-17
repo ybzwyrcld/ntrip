@@ -29,8 +29,8 @@
 namespace libntrip {
 
 constexpr char kCasterAgent[] = "NTRIP NTRIPCaster/20210620";
-constexpr char kClientAgent[] = "NTRIP NTRIPClient/20210620";
-constexpr char kServerAgent[] = "NTRIP NTRIPServer/20210620";
+constexpr char kClientAgent[] = "NTRIP NTRIPClient/20220217";
+constexpr char kServerAgent[] = "NTRIP NTRIPServer/20220217";
 
 void PrintCharArray(const char *src, const int &len);
 void PrintCharArrayHex(const char *src, const int &len);
