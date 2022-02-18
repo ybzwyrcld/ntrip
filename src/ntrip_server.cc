@@ -41,6 +41,7 @@
 #include <vector>
 
 #include "ntrip/ntrip_util.h"
+#include "cmake_definition.h"
 
 
 namespace libntrip {

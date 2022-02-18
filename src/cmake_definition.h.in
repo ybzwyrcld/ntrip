@@ -1,6 +1,6 @@
 // MIT License
 //
-// Copyright (c) 2021 Yuming Meng
+// Copyright (c) 2022 Yuming Meng
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -20,20 +20,22 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#ifndef NTRIPLIB_NTRIP_UTIL_H_
-#define NTRIPLIB_NTRIP_UTIL_H_
+// @File    :  cmake_definition.h
+// @Version :  1.0
+// @Time    :  2022/02/18 16:55:40
+// @Author  :  Meng Yuming
+// @Contact :  mengyuming@hotmail.com
+// @Desc    :  None
 
-#include <string>
-
+#ifndef NTRIP_CMAKE_DEFINITION_H_
+#define NTRIP_CMAKE_DEFINITION_H_
 
 namespace libntrip {
 
-int BccCheckSumCompareForGGA(char const* src);
-int Base64Encode(std::string const& raw, std::string* out);
-int Base64Decode(std::string const& raw, std::string* out);
-int GGAFrameGenerate(double latitude, double longitude,
-    double altitude, std::string* gga_out);
+constexpr char kCasterAgent[] = "NTRIP NTRIPCaster/@NTRIP_VERSION_MAJOR@.@NTRIP_VERSION_MINOR@.@NTRIP_VERSION_PATCH@.@GIT_HASH@";
+constexpr char kClientAgent[] = "NTRIP NTRIPClient/@NTRIP_VERSION_MAJOR@.@NTRIP_VERSION_MINOR@.@NTRIP_VERSION_PATCH@.@GIT_HASH@";
+constexpr char kServerAgent[] = "NTRIP NTRIPServer/@NTRIP_VERSION_MAJOR@.@NTRIP_VERSION_MINOR@.@NTRIP_VERSION_PATCH@.@GIT_HASH@";
 
 }  // namespace libntrip
 
-#endif  // NTRIPLIB_NTRIP_UTIL_H_
+#endif  // NTRIP_CMAKE_DEFINITION_H_

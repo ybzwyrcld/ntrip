@@ -2,9 +2,9 @@ cmake_minimum_required(VERSION 2.8)
 
 project(ntrip)
 
-set(VERSION_MAJOR 1)
-set(VERSION_MINOR 0)
-set(VERSION_PATCH 0)
+set(NTRIP_VERSION_MAJOR 1)
+set(NTRIP_VERSION_MINOR 1)
+set(NTRIP_VERSION_PATCH 0)
 
 option(NTRIP_BUILD_EXAMPLES "Build ntrip examples" OFF)
 
@@ -25,6 +25,21 @@ set(CMAKE_INCLUDE_OUTPUT_PATH ${CMAKE_CURRENT_BINARY_DIR}/include)
 
 set(ntrip_include_dirs ${CMAKE_CURRENT_SOURCE_DIR}/include)
 include_directories(SYSTEM ${ntrip_include_dirs})
+
+message(STATUS "Source code version: ${NTRIP_VERSION_MAJOR}.${NTRIP_VERSION_MINOR}.${NTRIP_VERSION_PATCH}")
+list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
+include(git_utility)
+set(GIT_BRANCH "")
+get_git_branch(GIT_BRANCH)
+message(STATUS "Git branch: ${GIT_BRANCH}")
+set(GIT_HASH "")
+get_git_hash(GIT_HASH)
+message(STATUS "Git hash: ${GIT_HASH}")
+
+configure_file(
+  ${PROJECT_SOURCE_DIR}/src/cmake_definition.h.in
+  ${PROJECT_SOURCE_DIR}/src/cmake_definition.h
+)
 
 aux_source_directory(src src_MAIN)
 
