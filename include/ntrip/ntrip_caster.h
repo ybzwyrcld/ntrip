@@ -25,12 +25,14 @@
 
 #include <sys/epoll.h>
 
+#include <atomic>
 #include <string>
 #include <list>
 #include <vector>
 #include <thread>  // NOLINT.
 
 #include "mount_point.h"
+#include "../thread_raii.h"
 
 
 namespace libntrip {
@@ -38,47 +40,45 @@ namespace libntrip {
 class NtripCaster {
  public:
   NtripCaster() = default;
-  NtripCaster(const NtripCaster &) = delete;
-  NtripCaster& operator=(const NtripCaster&) = delete;
+  NtripCaster(NtripCaster const&) = delete;
+  NtripCaster(NtripCaster&&) = delete;
+  NtripCaster& operator=(NtripCaster const&) = delete;
+  NtripCaster& operator=(NtripCaster&&) = delete;
   ~NtripCaster();
 
-  void Init(const int &port, const int &sock_count, const int &time_out) {
-    server_port_ = port;
-    max_count_ = sock_count;
-    time_out_ = time_out;
+  void Init(int server_port, int max_connection_count,
+      int epoll_wait_timeout) {
+    server_port_ = server_port;
+    max_count_ = max_connection_count;
+    time_out_ = epoll_wait_timeout;
   }
-  void Init(const std::string &server_ip, const int &port,
-            const int &sock_count, const int &time_out) {
+  void Init(std::string const& server_ip, int server_port,
+      int max_connection_count, int epoll_wait_timeout) {
     server_ip_ = server_ip;
-    server_port_ = port;
-    max_count_ = sock_count;
-    time_out_ = time_out;
-    service_is_running_ = false;
+    server_port_ = server_port;
+    max_count_ = max_connection_count;
+    time_out_ = epoll_wait_timeout;
   }
   bool Run(void);
   void Stop(void);
   bool service_is_running(void) const {
-    return service_is_running_;
+    return service_is_running_.load();
   }
 
  private:
   void ThreadHandler(void);
-  int NtripCasterWait(const int &time_out);
   int AcceptNewConnect(void);
-  int RecvData(const int &sock, char *recv_buf);
-  int SendData(const int &sock, const char *send_buf, const int &buf_len);
-  void DealDisconnect(const int &sock);
-  int ParseData(const int &sock, char *recv_buf, const int &len);
-  int DealServerConnectRequest(std::vector<std::string> *buffer_line,
-                               const int &sock);
-  void SendSourceTableData(const int &sock);
-  int DealClientConnectRequest(std::vector<std::string> *buffer_line,
-                               const int &sock);
-  int TryToForwardServerData(const int &server_sock,
-                             const char *buf, const int &buf_len);
+  void Disconnect(int socket_fd);
+  int ParseData(int socket_fd, char const* buffer, int buffer_len);
+  void SendSourceTableData(int socket_fd);
+  int TryToForwardServerData(int socket_fd,
+      char const* buffer, int buffer_len);
+  int ServerConnectRequest(
+      std::vector<std::string> const& lines, int socket_fd);
+  int ClientConnectRequest(
+      std::vector<std::string> const& lines, int socket_fd);
 
-  bool main_thread_is_running_ = false;
-  bool service_is_running_ = false;
+  std::atomic_bool service_is_running_ = {false};
   std::string server_ip_;
   int server_port_ = -1;
   int time_out_ = 0;
@@ -86,8 +86,8 @@ class NtripCaster {
   int epoll_fd_ = -1;
   int max_count_ = 0;
   struct epoll_event *epoll_events_ = nullptr;
-  std::thread main_thread_;
-  std::list<MountPoint> mount_point_list_;
+  Thread thread_;
+  std::list<MountPointInformation> mount_point_infos_;
   std::vector<std::string> ntrip_str_list_;
 };
 

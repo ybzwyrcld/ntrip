@@ -27,11 +27,11 @@
 
 namespace libntrip {
 
-struct MountPoint {
+struct MountPointInformation {
   int server_fd;
-  char username[16];
-  char password[16];
-  char mount_point_name[16];
+  std::string mountpoint;
+  std::string username;
+  std::string password;
   std::list<int> client_socket_list;
 };
 

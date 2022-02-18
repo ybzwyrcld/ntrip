@@ -28,18 +28,16 @@
 
 namespace libntrip {
 
-constexpr char kCasterAgent[] = "NTRIP NTRIPCaster/20210620";
+constexpr char kCasterAgent[] = "NTRIP NTRIPCaster/20220217";
 constexpr char kClientAgent[] = "NTRIP NTRIPClient/20220217";
 constexpr char kServerAgent[] = "NTRIP NTRIPServer/20220217";
 
-void PrintCharArray(const char *src, const int &len);
-void PrintCharArrayHex(const char *src, const int &len);
-int BccCheckSumCompareForGGA(const char *src);
-int Base64Encode(const char *src, char *result);
-int Base64Decode(const char *src, char *user, char *passwd);
-int GetSourcetable(const char *path, char *data, const int &data_len);
-int GetGGAFrameData(double const& latitude, double const& longitude,
-                    double const& altitude, std::string* const gga_str);
+
+int BccCheckSumCompareForGGA(char const* src);
+int Base64Encode(std::string const& raw, std::string* out);
+int Base64Decode(std::string const& raw, std::string* out);
+int GGAFrameGenerate(double latitude, double longitude,
+    double altitude, std::string* gga_out);
 
 }  // namespace libntrip
 

@@ -85,14 +85,12 @@ bool NtripServer::Run(void) {
   fcntl(socket_fd, F_SETFL, flags | O_NONBLOCK);
   // Ntrip connection authentication.
   int ret = -1;
-  char userinfo[128] = {0};
-  char userinfo_base64[256] = {0};
+  std::string user_passwd = user_ + ":" + passwd_;
+  std::string user_passwd_base64;
   std::unique_ptr<char[]> buffer(
       new char[kBufferSize], std::default_delete<char[]>());
   // Generate base64 encoding of username and password.
-  snprintf(userinfo, sizeof(userinfo) , "%s:%s",
-      user_.c_str(), passwd_.c_str());
-  Base64Encode(userinfo, userinfo_base64);
+  Base64Encode(user_passwd, &user_passwd_base64);
   // Generate request data format of ntrip.
   ret = snprintf(buffer.get(), kBufferSize-1,
       "POST /%s HTTP/1.1\r\n"
@@ -104,7 +102,7 @@ bool NtripServer::Run(void) {
       "Connection: close\r\n"
       "Transfer-Encoding: chunked\r\n",
       mountpoint_.c_str(), server_ip_.c_str(), server_port_,
-      kServerAgent, userinfo_base64, ntrip_str_.c_str());
+      kServerAgent, user_passwd_base64.c_str(), ntrip_str_.c_str());
   if (send(socket_fd, buffer.get(), ret, 0) < 0) {
     printf("Send authentication request failed!!!\n");
     close(socket_fd);
@@ -120,6 +118,8 @@ bool NtripServer::Run(void) {
           (result.find("ICY 200 OK") != std::string::npos)) {
         // printf("Connect to caster success\n");
         break;
+      } else {
+        printf("Request result: %s\n", result.c_str());
       }
     } else if (ret == 0) {
       printf("Remote socket close!!!\n");

@@ -92,21 +92,19 @@ bool NtripClient::Run(void) {
   fcntl(socket_fd, F_SETFL, flags | O_NONBLOCK);
   // Ntrip connection authentication.
   int ret = -1;
-  char userinfo[128] = {0};
-  char userinfo_base64[256] = {0};
+  std::string user_passwd = user_ + ":" + passwd_;
+  std::string user_passwd_base64;
   std::unique_ptr<char[]> buffer(
       new char[kBufferSize], std::default_delete<char[]>());
   // Generate base64 encoding of username and password.
-  ret = snprintf(userinfo, sizeof(userinfo), "%s:%s",
-      user_.c_str(), passwd_.c_str());
-  Base64Encode(userinfo, userinfo_base64);
+  Base64Encode(user_passwd, &user_passwd_base64);
   // Generate request data format of ntrip.
   ret = snprintf(buffer.get(), kBufferSize-1,
       "GET /%s HTTP/1.1\r\n"
       "User-Agent: %s\r\n"
       "Authorization: Basic %s\r\n"
       "\r\n",
-      mountpoint_.c_str(), kClientAgent, userinfo_base64);
+      mountpoint_.c_str(), kClientAgent, user_passwd_base64.c_str());
   if (send(socket_fd, buffer.get(), ret, 0) < 0) {
     printf("Send request failed!!!\n");
     close(socket_fd);
@@ -121,7 +119,7 @@ bool NtripClient::Run(void) {
       if ((result.find("HTTP/1.1 200 OK") != std::string::npos) ||
           (result.find("ICY 200 OK") != std::string::npos)) {
         if (gga_buffer_.empty()) {
-          GetGGAFrameData(latitude_, longitude_, 10.0, &gga_buffer_);
+          GGAFrameGenerate(latitude_, longitude_, 10.0, &gga_buffer_);
         }
         ret = send(socket_fd, gga_buffer_.c_str(), gga_buffer_.size(), 0);
         if (ret < 0) {
@@ -131,6 +129,8 @@ bool NtripClient::Run(void) {
         }
         // printf("Send gpgga data ok\n");
         break;
+      } else {
+        printf("Request result: %s\n", result.c_str());
       }
     } else if (ret == 0) {
       printf("Remote socket close!!!\n");
@@ -203,7 +203,7 @@ void NtripClient::ThreadHandler(void) {
         tp_end-tp_beg).count() >= intv_ms) {
       tp_beg = std::chrono::steady_clock::now();
       if (!gga_is_update_.load()) {
-        GetGGAFrameData(latitude_, longitude_, 10.0, &gga_buffer_);
+        GGAFrameGenerate(latitude_, longitude_, 10.0, &gga_buffer_);
       }
       send(socket_fd_, gga_buffer_.c_str(), gga_buffer_.size(), 0);
     }
