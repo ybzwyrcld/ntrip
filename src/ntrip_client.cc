@@ -56,6 +56,7 @@ constexpr char gpgga_buffer[] =
     "1,08,1.0,0.000,M,100.000,M,,*57\r\n";
 
 constexpr int kBufferSize = 4096;
+constexpr int kReceiveTimeoutPeriod = 3;
 
 }  // namespace
 
@@ -184,6 +185,7 @@ void NtripClient::ThreadHandler(void) {
   auto tp_beg = std::chrono::steady_clock::now();
   auto tp_end = tp_beg;
   int intv_ms = report_interval_ * 1000;
+  int receive_timeout_cnt = kReceiveTimeoutPeriod;
   printf("NtripClient service running...\n");
   while (service_is_running_.load()) {
     ret = recv(socket_fd_, buffer.get(), kBufferSize, 0);
@@ -196,12 +198,14 @@ void NtripClient::ThreadHandler(void) {
         break;
       }
     } else {
+      receive_timeout_cnt = kReceiveTimeoutPeriod;
       callback_(buffer.get(), ret);
       if (ret == kBufferSize) continue;
     }
     tp_end = std::chrono::steady_clock::now();
     if (std::chrono::duration_cast<std::chrono::milliseconds>(
         tp_end-tp_beg).count() >= intv_ms) {
+      if (receive_timeout_cnt-- <= 0) break;
       tp_beg = std::chrono::steady_clock::now();
       if (!gga_is_update_.load()) {
         GGAFrameGenerate(latitude_, longitude_, 10.0, &gga_buffer_);
@@ -209,6 +213,10 @@ void NtripClient::ThreadHandler(void) {
       send(socket_fd_, gga_buffer_.c_str(), gga_buffer_.size(), 0);
     }
     std::this_thread::sleep_for(std::chrono::milliseconds(10));
+  }
+  if (socket_fd_ > 0) {
+    close(socket_fd_);
+    socket_fd_ = -1;
   }
   printf("NtripClient service done.\n");
   service_is_running_.store(false);

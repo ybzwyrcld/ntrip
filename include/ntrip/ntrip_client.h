@@ -89,7 +89,7 @@ class NtripClient {
 
   std::atomic_bool service_is_running_ = {false};
   std::atomic_bool gga_is_update_ = {false};  // 外部更新GGA数据标志.
-  int report_interval_;  // GGA数据上报时间间隔.
+  int report_interval_ = 1;  // GGA数据上报时间间隔.
   double latitude_ = 22.570535;  // 固定坐标纬度.
   double longitude_ = 113.937739;  // 固定坐标经度.
   std::string server_ip_;
