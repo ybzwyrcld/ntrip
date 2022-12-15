@@ -38,4 +38,3 @@ int main(int argc, char *argv[]) {
   ntrip_caster.Stop();
   return 0;
 }
-

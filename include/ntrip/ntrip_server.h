@@ -23,9 +23,9 @@
 #ifndef NTRIPLIB_NTRIP_SERVER_H_
 #define NTRIPLIB_NTRIP_SERVER_H_
 
-
-#include <sys/types.h>
-#include <sys/socket.h>
+#if defined(WIN32) || defined(_WIN32)
+#include <winsock2.h>
+#endif  // defined(WIN32) || defined(_WIN32)
 
 #include <string>
 #include <thread>  // NOLINT.
@@ -33,7 +33,7 @@
 #include <vector>
 #include <atomic>
 
-#include "../thread_raii.h"
+#include "./thread_raii.h"
 
 
 namespace libntrip {
@@ -65,9 +65,7 @@ class NtripServer {
   }
 
   // Return 0 if success.
-  int SendData(const char *data, int size) {
-    return (size == send(socket_fd_, data, size, 0))-1;
-  }
+  int SendData(const char *data, int size);
   int SendData(std::vector<char> const& data) {
     return SendData(data.data(), data.size());
   }
@@ -92,12 +90,16 @@ class NtripServer {
 
   std::atomic_bool service_is_running_ = {false};
   std::string server_ip_;
-  int server_port_ = -1;
+  int server_port_ = 8090;
   std::string user_;
   std::string passwd_;
   std::string mountpoint_;
   std::string ntrip_str_;
+#if defined(WIN32) || defined(_WIN32)
+  SOCKET socket_fd_ = INVALID_SOCKET;
+#else
   int socket_fd_ = -1;
+#endif  // defined(WIN32) || defined(_WIN32)
   Thread thread_;
   std::list<std::vector<char>> data_list_;
 };

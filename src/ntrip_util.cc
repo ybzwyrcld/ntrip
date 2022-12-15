@@ -25,7 +25,6 @@
 #include <math.h>
 #include <string.h>
 #include <time.h>
-#include <unistd.h>
 
 #include <string>
 #include <fstream>
@@ -118,17 +117,18 @@ int GGAFrameGenerate(double latitude, double longitude,
     double altitude, std::string* gga_out) {
   if (gga_out == nullptr) return -1;
   char src[256] = {0};
-  time_t t = time(nullptr);
-  struct tm *tt = localtime(&t);
-  double timestamp[3];
-  timestamp[0] = tt->tm_hour >= 8 ? tt->tm_hour - 8 : tt->tm_hour + 24 - 8;
-  timestamp[1] = tt->tm_min;
-  timestamp[2] = tt->tm_sec;
+  time_t time_now = time(nullptr);
+  struct tm tm_now = {0};
+#if defined(WIN32) || defined(_WIN32)
+  localtime_s(&tm_now, &time_now);
+#else
+  localtime_r(&time_now, &tm_now);
+#endif
   char *ptr = src;
   ptr += snprintf(ptr, sizeof(src)+src-ptr,
       "$GPGGA,%02.0f%02.0f%05.2f,%012.7f,%s,%013.7f,%s,1,"
-      "10,1.2,%.4f,M,-2.860,M,,0000",
-      timestamp[0], timestamp[1], timestamp[2],
+      "30,1.2,%.4f,M,-2.860,M,,0000",
+      tm_now.tm_hour*1.0, tm_now.tm_min*1.0, tm_now.tm_sec*1.0,
       fabs(DegreeConvertToDDMM(latitude))*100.0,
       latitude > 0.0 ? "N" : "S",
       fabs(DegreeConvertToDDMM(longitude))*100.0,

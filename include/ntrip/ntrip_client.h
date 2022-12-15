@@ -23,12 +23,16 @@
 #ifndef NTRIPLIB_NTRIP_CLIENT_H_
 #define NTRIPLIB_NTRIP_CLIENT_H_
 
+#if defined(WIN32) || defined(_WIN32)
+#include <winsock2.h>
+#endif  // defined(WIN32) || defined(_WIN32)
+
 #include <atomic>
 #include <string>
 #include <thread>  // NOLINT.
 #include <functional>
 
-#include "../thread_raii.h"
+#include "./thread_raii.h"
 
 
 namespace libntrip {
@@ -93,12 +97,16 @@ class NtripClient {
   double latitude_ = 22.570535;  // 固定坐标纬度.
   double longitude_ = 113.937739;  // 固定坐标经度.
   std::string server_ip_;
-  int server_port_ = -1;
+  int server_port_ = 8090;
   std::string user_;
   std::string passwd_;
   std::string mountpoint_;
   std::string gga_buffer_;
+#if defined(WIN32) || defined(_WIN32)
+  SOCKET socket_fd_ = INVALID_SOCKET;
+#else
   int socket_fd_ = -1;
+#endif  // defined(WIN32) || defined(_WIN32)
   Thread thread_;
   ClientCallback callback_ = [] (char const*, int) -> void {};
 };

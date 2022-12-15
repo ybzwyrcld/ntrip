@@ -1,11 +1,14 @@
-cmake_minimum_required(VERSION 2.8)
+cmake_minimum_required(VERSION 3.0)
 
 project(ntrip)
 
 set(NTRIP_VERSION_MAJOR 1)
-set(NTRIP_VERSION_MINOR 1)
+set(NTRIP_VERSION_MINOR 2)
 set(NTRIP_VERSION_PATCH 0)
 
+option(NTRIP_BUILD_CASTER "Build ntrip caster" OFF)
+option(NTRIP_BUILD_CLIENT "Build ntrip client" ON)
+option(NTRIP_BUILD_SERVER "Build ntrip server" ON)
 option(NTRIP_BUILD_EXAMPLES "Build ntrip examples" OFF)
 
 if (NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
@@ -15,7 +18,9 @@ if (NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
 endif(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -pthread")
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wfatal-errors")
+if ("${CMAKE_CXX_COMPILER_ID}" MATCHES "GNU")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wfatal-errors")
+endif("${CMAKE_CXX_COMPILER_ID}" MATCHES "GNU")
 
 set(CMAKE_CXX_FLAGS_DEBUG "$ENV{CXXFLAGS} -O2 -Wall -g -ggdb")
 set(CMAKE_CXX_FLAGS_RELEASE "$ENV{CXXFLAGS} -O3 -Wall")
@@ -43,9 +48,24 @@ configure_file(
 
 aux_source_directory(src src_MAIN)
 
+if (NOT NTRIP_BUILD_CASTER)
+  list(REMOVE_ITEM src_MAIN "src/ntrip_caster.cc")
+  message("-- Not build ntrip caster")
+endif ()
+
+if (NOT NTRIP_BUILD_SERVER)
+  list(REMOVE_ITEM src_MAIN "src/ntrip_server.cc")
+  message("-- Not build ntrip server")
+endif ()
+
 add_library(${PROJECT_NAME}
   ${src_MAIN}
 )
+
+if (WIN32)
+  target_link_libraries(${PROJECT_NAME} ws2_32)
+endif (WIN32)
+
 set_target_properties(${PROJECT_NAME} PROPERTIES INTERFACE_INCLUDE_DIRECTORIES ${ntrip_include_dirs})
 
 if (NTRIP_BUILD_EXAMPLES)

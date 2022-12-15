@@ -20,13 +20,12 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#include "ntrip/ntrip_server.h"
-
-#include <unistd.h>
 #include <stdint.h>
 
 #include <string>
 #include <vector>
+
+#include "ntrip/ntrip_server.h"
 
 
 namespace {

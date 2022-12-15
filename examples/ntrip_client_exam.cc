@@ -20,14 +20,12 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#include "ntrip/ntrip_client.h"
-
-#include <unistd.h>
 #include <stdint.h>
 
 #include <string>
 #include <vector>
 
+#include "ntrip/ntrip_client.h"
 #include "ntrip/ntrip_util.h"
 
 
@@ -55,7 +53,7 @@ int main(void) {
   //   ntrip_client.set_gga_buffer(gga);
   // }
   ntrip_client.set_location(22.57311, 113.94905);
-  ntrip_client.set_report_interval(10);
+  ntrip_client.set_report_interval(1);
   ntrip_client.Run();
   std::this_thread::sleep_for(std::chrono::seconds(1));  // Maybe take longer?
   while (ntrip_client.service_is_running()) {
@@ -65,4 +63,3 @@ int main(void) {
   ntrip_client.Stop();
   return 0;
 }
-

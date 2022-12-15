@@ -20,14 +20,13 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-// @File    :  ntrip_client_to_ntrip_server.cc
+// @File    :  ntrip_client_to_ntrip_server_exam.cc
 // @Version :  1.0
 // @Time    :  2021/07/21 09:16:15
 // @Author  :  Meng Yuming
 // @Contact :  mengyuming@hotmail.com
 // @Desc    :  None
 
-#include <unistd.h>
 #include <stdint.h>
 
 #include <string>
@@ -36,6 +35,7 @@
 #include "ntrip/ntrip_client.h"
 #include "ntrip/ntrip_server.h"
 #include "ntrip/ntrip_util.h"
+
 
 namespace {
 
@@ -67,7 +67,7 @@ int main(void) {
     }
   });
   ntrip_client.set_location(22.57311, 113.94905);
-  ntrip_client.set_report_interval(10);
+  ntrip_client.set_report_interval(1);
   ntrip_client.Run();
   do {
     if (!ntrip_client.service_is_running()) {
