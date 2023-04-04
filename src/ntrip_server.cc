@@ -22,7 +22,7 @@
 
 #include "ntrip/ntrip_server.h"
 
-#if defined(__linux__)
+#if defined(__linux__) || defined(__APPLE__)
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
