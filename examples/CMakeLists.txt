@@ -1,5 +1,5 @@
 if (NTRIP_BUILD_CASTER)
-  add_executable(ntrip_caster ntrip_caster_exam.cc)
+  add_executable(ntrip_caster_exam ntrip_caster_exam.cc)
   add_dependencies(ntrip_caster_exam ntrip)
   target_link_libraries(ntrip_caster_exam ntrip)
 endif (NTRIP_BUILD_CASTER)
